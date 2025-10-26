@@ -9,6 +9,9 @@ library(here)
 library(ggplot2)
 library(patchwork) # For combining plots
 
+# Load helper functions
+source(here("scripts", "00_helper_functions.R"))
+
 # Set theme
 theme_set(theme_minimal(base_size = 12))
 
@@ -27,15 +30,16 @@ cat("Loading results for visualization...\n")
 team_abilities <- readRDS(here("data", "processed", "team_abilities_with_seeds.rds"))
 mid_tier_summary <- readRDS(here("results", "tables", "simulation_summary.rds"))
 seed_performance <- readRDS(here("results", "tables", "seed_performance_sim.rds"))
-first_round_summary <- readRDS(here("results", "tables", "first_round_summary.rds"))
-second_round_summary <- readRDS(here("results", "tables", "second_round_summary.rds"))
-deeper_summary <- readRDS(here("results", "tables", "deeper_runs_summary.rds"))
-conditional_summary <- readRDS(here("results", "tables", "conditional_summary.rds"))
-mid_tier_counts <- read_csv(here("results", "tables", "mid_tier_counts_by_sim.csv"),
-    show_col_types = FALSE
-)
 
+first_round_summary <- read_csv(here("results", "tables", "first_round_summary.csv"), show_col_types = FALSE)
+second_round_summary <- read_csv(here("results", "tables", "second_round_summary.csv"), show_col_types = FALSE)
+deeper_summary <- read_csv(here("results", "tables", "deeper_runs_summary.csv"), show_col_types = FALSE)
+conditional_summary <- read_csv(here("results", "tables", "conditional_summary.csv"), show_col_types = FALSE)
+mid_tier_counts <- read_csv(here("results", "tables", "mid_tier_counts_by_sim.csv"), show_col_types = FALSE)
+
+dir_create_safe("results", "figures")
 cat("✓ Data loaded successfully\n")
+
 
 # =============================================================================
 # 2. Plot 1: Team Strength Distribution by Seed Category
@@ -45,7 +49,10 @@ cat("\nCreating Plot 1: Team strength distribution...\n")
 
 p1 <- team_abilities %>%
     filter(!is.na(seed)) %>%
+    # Tame extreme values for cleaner visualization (cap SEs and lambdas)
     mutate(
+        lambda = pmax(pmin(lambda, 8), -8), # Clamp to [-8, 8]
+        se = pmin(se, 2), # Cap huge SEs
         seed_category = factor(
             seed_category,
             levels = c("1-4 seeds", "5-7 seeds", "8-12 seeds", "13-16 seeds")
@@ -86,13 +93,27 @@ cat("✓ Saved: 01_team_strength_by_seed.png\n")
 cat("\nCreating Plot 2: All team strengths with confidence intervals...\n")
 
 # Select teams for visualization (tournament teams only)
+# Filter out teams with huge SEs (indicates poor information/quasi-separation)
+se_threshold <- quantile(team_abilities$se[!is.na(team_abilities$seed)], 0.95, na.rm = TRUE)
+
 tournament_teams <- team_abilities %>%
     filter(!is.na(seed)) %>%
+    filter(se <= se_threshold) %>% # Drop worst 5% SEs
+    # Cap extreme values for cleaner visualization
+    mutate(
+        lambda = pmax(pmin(lambda, 6), -6), # Tighter clamp for viz
+        se = pmin(se, 2)
+    ) %>%
     arrange(lambda) %>%
     mutate(
         rank = row_number(),
         is_mid_tier = seed >= 8 & seed <= 12
     )
+
+cat(sprintf(
+    "Filtered to %d teams for visualization (excluded high-SE outliers)\n",
+    nrow(tournament_teams)
+))
 
 p2 <- tournament_teams %>%
     ggplot(aes(x = rank, y = lambda, color = is_mid_tier)) +
@@ -112,7 +133,7 @@ p2 <- tournament_teams %>%
         x = "Rank (by team strength)",
         y = "Estimated Team Strength (λ)",
         color = "Seed Group",
-        caption = "Error bars show ± 2 standard errors"
+        caption = "Error bars show ± 2 SE. Top 5% SE teams excluded for clarity. λ capped at ±6 for visualization."
     ) +
     theme(
         plot.title = element_text(face = "bold", size = 14),
@@ -135,21 +156,26 @@ cat("✓ Saved: 02_all_team_strengths.png\n")
 # 4. Plot 3: First Round Win Probabilities by Seed
 # =============================================================================
 
+# Plot 3: First Round Win Probabilities by Seed (use the summary directly)
 cat("\nCreating Plot 3: First round win probabilities...\n")
 
 p3 <- first_round_summary %>%
+    # Drop NAs and clip probabilities to [0, 1]
+    drop_na(avg_prob_win, min_prob_win, max_prob_win) %>%
+    mutate(
+        avg_prob_win = pmin(pmax(avg_prob_win, 0), 1),
+        min_prob_win = pmin(pmax(min_prob_win, 0), 1),
+        max_prob_win = pmin(pmax(max_prob_win, 0), 1)
+    ) %>%
     ggplot(aes(x = factor(seed), y = avg_prob_win)) +
     geom_col(fill = oi_colors[3], alpha = 0.8) +
     geom_errorbar(
         aes(ymin = min_prob_win, ymax = max_prob_win),
-        width = 0.3,
-        color = oi_colors[5]
+        width = 0.3, color = oi_colors[5]
     ) +
     geom_text(
-        aes(label = sprintf("%.1f%%", avg_prob_win * 100)),
-        vjust = -0.5,
-        size = 4,
-        fontface = "bold"
+        aes(label = scales::percent(avg_prob_win, accuracy = 0.1)),
+        vjust = -0.5, size = 4, fontface = "bold"
     ) +
     scale_y_continuous(
         labels = scales::percent_format(),
@@ -157,11 +183,10 @@ p3 <- first_round_summary %>%
         expand = expansion(mult = c(0, 0.1))
     ) +
     labs(
-        title = "First Round Win Probability by Seed (8-12)",
+        title = "First Round Win Probability by Seed (8–12)",
         subtitle = "Probability of advancing to Round of 32",
-        x = "Seed",
-        y = "Win Probability",
-        caption = "Error bars show range across teams"
+        x = "Seed", y = "Win Probability",
+        caption = "Error bars show min–max across teams"
     ) +
     theme(
         plot.title = element_text(face = "bold", size = 14),
@@ -169,15 +194,9 @@ p3 <- first_round_summary %>%
         axis.title = element_text(face = "bold")
     )
 
-ggsave(
-    filename = here("results", "figures", "03_first_round_probabilities.png"),
-    plot = p3,
-    width = 10,
-    height = 6,
-    dpi = 300
-)
-
+ggsave(here("results", "figures", "03_first_round_probabilities.png"), p3, width = 10, height = 6, dpi = 300)
 cat("✓ Saved: 03_first_round_probabilities.png\n")
+
 
 # =============================================================================
 # 5. Plot 4: Expected Advancement by Round
@@ -185,32 +204,41 @@ cat("✓ Saved: 03_first_round_probabilities.png\n")
 
 cat("\nCreating Plot 4: Expected advancement by round...\n")
 
+# deeper_summary already has expected counts by seed (from Script 03)
+# Join with first_round and second_round summaries to get all rounds
+advancement_by_seed <- deeper_summary %>%
+    left_join(
+        first_round_summary %>% select(seed, expected_wins),
+        by = "seed"
+    ) %>%
+    left_join(
+        second_round_summary %>% select(seed, expected_in_sweet16),
+        by = "seed"
+    ) %>%
+    select(
+        seed,
+        r32 = expected_wins,
+        sweet16 = expected_in_sweet16,
+        elite8 = expected_elite8,
+        final4 = expected_final4
+    )
+
 # Prepare data for plotting
-advancement_data <- tibble(
-    seed = rep(8:12, each = 4),
-    round = rep(c("Round of 32", "Sweet 16", "Elite 8", "Final Four"), times = 5)
-) %>%
-    left_join(
-        first_round_summary %>% select(seed, r32 = expected_wins),
-        by = "seed"
+advancement_data <- advancement_by_seed %>%
+    pivot_longer(
+        cols = c(r32, sweet16, elite8, final4),
+        names_to = "round",
+        values_to = "expected"
     ) %>%
-    left_join(
-        second_round_summary %>% select(seed, sweet16 = expected_in_sweet16),
-        by = "seed"
-    ) %>%
-    left_join(
-        deeper_summary %>% select(seed,
-            elite8 = expected_elite8,
-            final4 = expected_final4
-        ),
-        by = "seed"
-    ) %>%
+    # Drop NAs and replace remaining NAs with 0 (no teams expected)
+    mutate(expected = if_else(is.na(expected), 0, expected)) %>%
+    drop_na(seed, round) %>%
     mutate(
-        expected = case_when(
-            round == "Round of 32" ~ r32,
-            round == "Sweet 16" ~ sweet16,
-            round == "Elite 8" ~ elite8,
-            round == "Final Four" ~ final4
+        round = case_when(
+            round == "r32" ~ "Round of 32",
+            round == "sweet16" ~ "Sweet 16",
+            round == "elite8" ~ "Elite 8",
+            round == "final4" ~ "Final Four"
         ),
         round = factor(round, levels = c(
             "Round of 32", "Sweet 16",
@@ -385,50 +413,38 @@ cat("✓ Saved: 06_analytical_vs_simulation.png\n")
 # 8. Plot 7: Conditional Probabilities
 # =============================================================================
 
+# Plot 7: Conditional probabilities (column names end with _given_s16)
 cat("\nCreating Plot 7: Conditional probabilities...\n")
 
 conditional_long <- conditional_summary %>%
-    select(seed, starts_with("avg_prob")) %>%
     pivot_longer(
-        cols = starts_with("avg_prob"),
-        names_to = "target_round",
-        values_to = "probability"
+        cols = c(
+            avg_prob_elite8_given_s16, avg_prob_final4_given_s16,
+            avg_prob_finals_given_s16, avg_prob_champion_given_s16
+        ),
+        names_to = "target_round", values_to = "probability"
     ) %>%
     mutate(
-        target_round = str_remove(target_round, "avg_prob_") %>%
-            str_remove("_given_s16") %>%
-            str_to_title() %>%
-            str_replace("elite8", "Elite 8") %>%
-            str_replace("final4", "Final Four") %>%
-            str_replace("finals", "Championship") %>%
-            str_replace("champion", "Win Title"),
-        target_round = factor(
-            target_round,
-            levels = c("Elite8", "Final4", "Finals", "Champion")
-        )
+        target_round = case_when(
+            target_round == "avg_prob_elite8_given_s16" ~ "Elite 8",
+            target_round == "avg_prob_final4_given_s16" ~ "Final Four",
+            target_round == "avg_prob_finals_given_s16" ~ "Championship",
+            target_round == "avg_prob_champion_given_s16" ~ "Win Title"
+        ),
+        target_round = factor(target_round, levels = c("Elite 8", "Final Four", "Championship", "Win Title"))
     )
 
 p7 <- conditional_long %>%
     ggplot(aes(x = factor(seed), y = probability, fill = factor(seed))) +
     geom_col(alpha = 0.8) +
-    geom_text(
-        aes(label = sprintf("%.1f%%", probability * 100)),
-        vjust = -0.5,
-        size = 3.5
-    ) +
+    geom_text(aes(label = scales::percent(probability, accuracy = 0.1)), vjust = -0.5, size = 3.5) +
     facet_wrap(~target_round, scales = "free_y", ncol = 2) +
     scale_fill_manual(values = oi_colors[1:5]) +
-    scale_y_continuous(
-        labels = scales::percent_format(),
-        limits = c(0, NA),
-        expand = expansion(mult = c(0, 0.15))
-    ) +
+    scale_y_continuous(labels = scales::percent_format(), limits = c(0, NA), expand = expansion(mult = c(0, 0.15))) +
     labs(
-        title = "Conditional Advancement Probabilities for 8-12 Seeds",
-        subtitle = "Given a team reaches the Sweet 16, probability of further advancement",
-        x = "Seed",
-        y = "Probability",
-        caption = "Conditional on reaching Sweet 16"
+        title = "Conditional Advancement Probabilities for 8–12 Seeds",
+        subtitle = "Given a team reaches the Sweet 16",
+        x = "Seed", y = "Probability"
     ) +
     theme(
         plot.title = element_text(face = "bold", size = 14),
@@ -438,15 +454,9 @@ p7 <- conditional_long %>%
         strip.text = element_text(face = "bold")
     )
 
-ggsave(
-    filename = here("results", "figures", "07_conditional_probabilities.png"),
-    plot = p7,
-    width = 12,
-    height = 8,
-    dpi = 300
-)
-
+ggsave(here("results", "figures", "07_conditional_probabilities.png"), p7, width = 12, height = 8, dpi = 300)
 cat("✓ Saved: 07_conditional_probabilities.png\n")
+
 
 # =============================================================================
 # 9. Plot 8: Seed Performance Heatmap

@@ -28,29 +28,39 @@ cat(sprintf("Loaded %d games\n", nrow(games_cleaned)))
 cat(sprintf("Loaded %d tournament teams\n", nrow(tournament_seeds)))
 
 # =============================================================================
-# 2. Fit Basic Bradley-Terry Model
+# 2. Fit Bradley-Terry Model with Home/Neutral Site Effect
 # =============================================================================
 
-cat("\nFitting Bradley-Terry model...\n")
+cat("\nFitting Bradley-Terry model with home advantage...\n")
 
 # Get unique teams for factor levels
 unique_teams <- sort(unique(c(as.character(bt_data$home.team), as.character(bt_data$away.team))))
 
-# Select a reference team (typically choose a mid-level team)
-# We'll use the first team alphabetically as default
-reference_team <- as.character(unique_teams[1])
-cat(sprintf("Using reference team: %s\n", reference_team))
+cat(sprintf("Total teams in model: %d\n", length(unique_teams)))
 
-# Fit the model
+# Add home advantage indicator (home_adv_bar is average home-game fraction for this matchup)
+# For March Madness simulation, we'll set this to 0 (neutral site)
+cat(sprintf(
+    "Home advantage covariate range: [%.3f, %.3f]\n",
+    min(bt_data$home_adv_bar), max(bt_data$home_adv_bar)
+))
+
+# Fit the model with home advantage term
+# Use sum-to-zero constraint (no explicit reference team) for interpretability
+# All abilities are centered around 0 (average team strength)
+cat("Using sum-to-zero constraint (centered abilities)\n")
+
 bt_model <- BradleyTerry2::BTm(
     outcome = cbind(home.wins, away.wins),
     player1 = home.team,
     player2 = away.team,
-    refcat = reference_team,
+    formula = ~ team + home_adv_bar, # Add home advantage covariate
+    id = "team",
+    contrasts = list(team = "contr.sum"), # Sum-to-zero constraint
     data = bt_data
 )
 
-cat("✓ Model fitted successfully\n")
+cat("✓ Model fitted successfully with home advantage term\n")
 
 # =============================================================================
 # 3. Extract Team Abilities (Lambda Values)
@@ -79,15 +89,16 @@ cat("\nBottom 10 teams (by estimated lambda):\n")
 print(team_abilities_df %>% tail(10), n = 10)
 
 # =============================================================================
-# 4. Compute Win Probabilities Matrix
+# 4. Compute Win Probabilities Matrix (Neutral Site)
 # =============================================================================
 
-cat("\nComputing pairwise win probabilities...\n")
+cat("\nComputing pairwise win probabilities (neutral site)...\n")
 
 # Extract lambda values as a named vector
 lambda_vec <- setNames(team_abilities_df$lambda, team_abilities_df$team)
 
 # Compute all pairwise differences (log-odds scale)
+# NOTE: This assumes neutral site (home_adv_bar = 0), appropriate for March Madness
 lambda_diff <- outer(
     X = lambda_vec,
     Y = lambda_vec,
@@ -95,8 +106,12 @@ lambda_diff <- outer(
 )
 
 # Transform to probability scale using inverse logit
-win_probs <- 1 / (1 + exp(-1 * lambda_diff))
+# Clip to avoid numerical 0/1
+win_probs_raw <- 1 / (1 + exp(-1 * lambda_diff))
+win_probs <- pmin(pmax(win_probs_raw, 1e-6), 1 - 1e-6)
 diag(win_probs) <- NA # Teams don't play themselves
+
+cat("✓ Win probabilities computed (neutral site assumption)\n")
 
 cat("✓ Win probability matrix computed\n")
 
@@ -214,8 +229,9 @@ predictions <- games_cleaned %>%
 # Calculate prediction accuracy
 accuracy <- mean(predictions$correct_prediction, na.rm = TRUE)
 cat(sprintf("\nPrediction accuracy on training data: %.2f%%\n", accuracy * 100))
+cat("NOTE: Metrics computed on training data (optimistic due to no train/test split)\n")
 
-# Calculate log-loss (Brier score)
+# Calculate log-loss (cross-entropy loss)
 log_loss <- -mean(
     predictions$home_winner * log(predictions$pred_prob_home_wins) +
         (1 - predictions$home_winner) * log(1 - predictions$pred_prob_home_wins),
@@ -262,7 +278,9 @@ cat("\n" %+% paste(rep("=", 70), collapse = "") %+% "\n")
 cat("BRADLEY-TERRY MODEL SUMMARY\n")
 cat(paste(rep("=", 70), collapse = "") %+% "\n\n")
 
-cat(sprintf("Reference team: %s\n", reference_team))
+cat("Model parameterization: Sum-to-zero constraint (centered abilities)\n")
+cat("  λ = 0 represents average team strength\n")
+cat("  Positive λ = stronger than average; Negative λ = weaker than average\n\n")
 cat(sprintf("Teams in model: %d\n", nrow(team_abilities_df)))
 cat(sprintf("Model converged: %s\n", bt_model$converged))
 cat(sprintf("Prediction accuracy: %.2f%%\n", accuracy * 100))

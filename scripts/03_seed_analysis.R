@@ -7,6 +7,11 @@
 library(tidyverse)
 library(here)
 
+# Load helper functions
+source(here("scripts", "00_helper_functions.R"))
+
+dir_create_safe("results", "tables")
+
 # =============================================================================
 # 1. Load Model Results
 # =============================================================================

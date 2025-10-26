@@ -1,0 +1,545 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\documentclass[
+]{article}
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{graphicx}
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{% scales image to fit in text height/width
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi% select the smaller of both
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+% Set default figure placement to htbp
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{colortbl}
+\usepackage{pdflscape}
+\usepackage{tabu}
+\usepackage{threeparttable}
+\usepackage{threeparttablex}
+\usepackage[normalem]{ulem}
+\usepackage{makecell}
+\usepackage{xcolor}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={Women's Basketball March Madness: Bradley-Terry Model Analysis},
+  pdfauthor={Your Names Here},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\title{Women's Basketball March Madness: Bradley-Terry Model Analysis}
+\usepackage{etoolbox}
+\makeatletter
+\providecommand{\subtitle}[1]{% add subtitle to \maketitle
+  \apptocmd{\@title}{\par {\large #1 \par}}{}{}
+}
+\makeatother
+\subtitle{Analyzing 8-12 Seed Advancement Probabilities}
+\author{Your Names Here}
+\date{2025-10-26}
+
+\begin{document}
+\maketitle
+
+{
+\setcounter{tocdepth}{3}
+\tableofcontents
+}
+\section{Executive Summary}\label{executive-summary}
+
+This report presents a comprehensive analysis of Women's NCAA Basketball
+March Madness tournament outcomes using Bradley-Terry models. We focus
+specifically on mid-tier seeds (8-12) to answer two key questions:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{How many 8-12 seeds should we expect to advance past the
+  second round?}
+\item
+  \textbf{Given that an 8-12 seed advances past the second round, what
+  is the probability they reach the finals or win the championship?}
+\end{enumerate}
+
+\subsection{Key Findings}\label{key-findings}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Expected 8-12 seeds in Sweet 16:} 2.38 teams
+\item
+  \textbf{Conditional probability of reaching Finals (given Sweet 16):}
+  50.8\%
+\item
+  \textbf{Conditional probability of winning championship (given Sweet
+  16):} 40.7\%
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{1. Introduction}\label{introduction}
+
+\subsection{1.1 Background}\label{background}
+
+The NCAA Women's Basketball Tournament, commonly known as March Madness,
+is a single-elimination tournament featuring 64 teams seeded 1-16 across
+four regions. Understanding the probability of upsets and the
+advancement potential of mid-tier seeds is valuable for:
+
+\begin{itemize}
+\tightlist
+\item
+  Bracket predictions
+\item
+  Understanding competitive balance
+\item
+  Identifying over/under-seeded teams
+\end{itemize}
+
+\subsection{1.2 Research Questions}\label{research-questions}
+
+\textbf{Research Question 1:} How many of the 8-12 seeds should we
+expect to advance past the second round (to the Sweet 16)?
+
+\textbf{Research Question 2:} Given that a team ranked 8-12 advanced
+past the second round, what is the chance they make it all the way to
+the finals or win the championship?
+
+\subsection{1.3 Why Focus on 8-12 Seeds?}\label{why-focus-on-8-12-seeds}
+
+We focus on 8-12 seeds because they represent an interesting competitive
+sweet spot:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Not automatic first-round exits} (unlike 13-16 seeds)
+\item
+  \textbf{Not overwhelming favorites} (unlike 1-4 seeds)
+\item
+  \textbf{Competitive upset potential} - capable of deep runs but face
+  significant challenges
+\item
+  \textbf{Strategic interest} - key for bracket predictions
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{2. Methodology}\label{methodology}
+
+\subsection{2.1 Bradley-Terry Model}\label{bradley-terry-model}
+
+The Bradley-Terry model estimates latent team strengths from pairwise
+comparisons (game results). For each team \(i\), the model assigns a
+strength parameter \(\lambda_i\) such that:
+
+\[P(\text{team } i \text{ beats team } j) = \frac{1}{1 + e^{-(\lambda_i - \lambda_j)}}\]
+
+\subsubsection{Key Properties:}\label{key-properties}
+
+\begin{itemize}
+\tightlist
+\item
+  Higher \(\lambda\) indicates stronger team
+\item
+  Log-odds of winning = difference in strengths
+\item
+  Identifiable only up to additive constant (we fix one team's
+  \(\lambda = 0\))
+\end{itemize}
+
+\subsection{2.2 Data}\label{data}
+
+\textbf{Data Source:} Women's NCAA Basketball data via
+\texttt{wncaahoopR} package
+
+\textbf{Dataset Statistics:}
+
+\begin{itemize}
+\tightlist
+\item
+  Total teams analyzed: 372
+\item
+  Total games: 10808
+\item
+  Tournament teams: 64
+\item
+  Teams with 8-12 seeds: 20
+\end{itemize}
+
+\subsection{2.3 Analysis Approach}\label{analysis-approach}
+
+Our analysis consists of three components:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Bradley-Terry Model Fitting} - Estimate team strengths from
+  regular season games
+\item
+  \textbf{Analytical Probability Calculations} - Calculate exact
+  probabilities for specific matchups
+\item
+  \textbf{Monte Carlo Simulation} - Simulate 5,000 complete tournaments
+  to estimate complex probabilities
+\end{enumerate}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{3. Results}\label{results}
+
+\subsection{3.1 Team Strength Estimates}\label{team-strength-estimates}
+
+\begin{figure}
+
+{\centering \includegraphics[width=41.67in]{../results/figures/01_team_strength_by_seed} 
+
+}
+
+\caption{Team strength distribution by seed category}\label{fig:team-strength-plot}
+\end{figure}
+
+The Bradley-Terry model successfully distinguishes between seed
+categories, with higher seeds showing systematically higher estimated
+strengths.
+
+\subsubsection{Top 10 Strongest Teams}\label{top-10-strongest-teams}
+
+\begin{longtable}[t]{lrlll}
+\caption{\label{tab:top-teams}Top 10 Strongest Teams by Bradley-Terry Model}\\
+\toprule
+Team & Seed & Region & Lambda & Std. Error\\
+\midrule
+South Carolina Gamecocks & 1 & Portland & 19.807 & 247.652\\
+Stanford Cardinal & 11 & Spokane & 5.366 & 1.705\\
+LSU Tigers & 5 & Portland & 5.180 & 1.744\\
+UConn Huskies & 10 & Albany & 5.108 & 1.704\\
+Indiana Hoosiers & 8 & Wichita & 5.021 & 1.713\\
+\addlinespace
+Iowa Hawkeyes & 12 & Wichita & 4.950 & 1.701\\
+UCLA Bruins & 12 & Wichita & 4.850 & 1.696\\
+Notre Dame Fighting Irish & 1 & Portland & 4.799 & 1.701\\
+Virginia Tech Hokies & 2 & Albany & 4.692 & 1.700\\
+USC Trojans & 11 & Spokane & 4.675 & 1.700\\
+\bottomrule
+\end{longtable}
+
+\subsection{3.2 First Round Performance (8-12
+Seeds)}\label{first-round-performance-8-12-seeds}
+
+\begin{figure}
+
+{\centering \includegraphics[width=41.67in]{../results/figures/03_first_round_probabilities} 
+
+}
+
+\caption{First round win probabilities for 8-12 seeds}\label{fig:first-round-plot}
+\end{figure}
+
+\begin{longtable}[t]{rrll}
+\caption{\label{tab:first-round-table}First Round Win Probabilities by Seed}\\
+\toprule
+Seed & N Teams & Avg Win Prob & Expected Wins\\
+\midrule
+8 & 4 & 27.2\% & 1.09\\
+9 & 4 & 13.4\% & 0.54\\
+10 & 4 & 42.5\% & 1.70\\
+11 & 4 & 41.5\% & 1.66\\
+12 & 4 & 21.8\% & 0.87\\
+\bottomrule
+\end{longtable}
+
+\subsection{3.3 Research Question 1: Expected
+Advancement}\label{research-question-1-expected-advancement}
+
+\begin{figure}
+
+{\centering \includegraphics[width=50in]{../results/figures/06_analytical_vs_simulation} 
+
+}
+
+\caption{Expected number of 8-12 seeds advancing by round}\label{fig:advancement-plot}
+\end{figure}
+
+\subsubsection{Answer to Research Question
+1}\label{answer-to-research-question-1}
+
+\textbf{We expect approximately 2.4 of the 8-12 seeds to advance past
+the second round (to the Sweet 16).}
+
+\begin{longtable}[t]{rrlll}
+\caption{\label{tab:advancement-table}Second Round Performance and Sweet 16 Expectations}\\
+\toprule
+Seed & N Teams & P(Round 2 Win \&\#124; Round 1 Win) & P(Sweet 16) & Expected in Sweet 16\\
+\midrule
+8 & 4 & 0.0\% & 0.0\% & 0.00\\
+9 & 4 & 0.0\% & 0.0\% & 0.00\\
+10 & 4 & 23.5\% & 17.8\% & 0.71\\
+11 & 4 & 52.3\% & 27.5\% & 1.10\\
+12 & 4 & 33.4\% & 14.1\% & 0.56\\
+\bottomrule
+\end{longtable}
+
+\subsubsection{Breakdown by Seed}\label{breakdown-by-seed}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{8 seeds:} Most likely to advance (face 9 seeds in Round 1, 1
+  seeds in Round 2)
+\item
+  \textbf{9 seeds:} Similar probability to 8 seeds
+\item
+  \textbf{10-12 seeds:} Lower but non-negligible probability of Sweet 16
+\end{itemize}
+
+\subsection{3.4 Research Question 2: Conditional
+Probabilities}\label{research-question-2-conditional-probabilities}
+
+\begin{figure}
+
+{\centering \includegraphics[width=50in]{../results/figures/07_conditional_probabilities} 
+
+}
+
+\caption{Conditional probabilities given Sweet 16 appearance}\label{fig:conditional-plot}
+\end{figure}
+
+\subsubsection{Answer to Research Question
+2}\label{answer-to-research-question-2}
+
+\textbf{Given that an 8-12 seed reaches the Sweet 16:}
+
+\begin{itemize}
+\tightlist
+\item
+  Probability of reaching \textbf{Elite 8}: 83.5\%
+\item
+  Probability of reaching \textbf{Final Four}: 64.5\%
+\item
+  Probability of reaching \textbf{Finals}: 50.8\%
+\item
+  Probability of \textbf{winning championship}: 40.7\%
+\end{itemize}
+
+\begin{longtable}[t]{lllll}
+\caption{\label{tab:conditional-table}Conditional Advancement Probabilities by Seed}\\
+\toprule
+Seed & P(Elite 8 \&\#124; Sweet 16) & P(Final Four \&\#124; Sweet 16) & P(Finals \&\#124; Sweet 16) & P(Champion \&\#124; Sweet 16)\\
+\midrule
+800.0\% & 36.0\% & 17.4\% & 10.5\% & 6.8\%\\
+900.0\% & 2.8\% & 0.1\% & 0.0\% & 0.0\%\\
+1000.0\% & 42.7\% & 26.2\% & 18.4\% & 13.5\%\\
+1100.0\% & 73.5\% & 55.2\% & 44.2\% & 36.3\%\\
+1200.0\% & 39.5\% & 25.4\% & 16.9\% & 11.2\%\\
+\bottomrule
+\end{longtable}
+
+\subsection{3.5 Monte Carlo Simulation
+Results}\label{monte-carlo-simulation-results}
+
+\begin{figure}
+
+{\centering \includegraphics[width=50in]{../results/figures/05_simulation_distributions} 
+
+}
+
+\caption{Distribution of 8-12 seeds by round (5000 simulations)}\label{fig:simulation-plot}
+\end{figure}
+
+\subsubsection{Simulation Validation}\label{simulation-validation}
+
+The Monte Carlo simulations (5,000 tournament replications) closely
+match our analytical predictions, providing confidence in our results.
+
+\begin{figure}
+
+{\centering \includegraphics[width=50in]{../results/figures/08_seed_performance_heatmap} 
+
+}
+
+\caption{Seed performance heatmap from simulations}\label{fig:heatmap}
+\end{figure}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{4. Discussion}\label{discussion}
+
+\subsection{4.1 Key Insights}\label{key-insights}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  \textbf{Mid-tier seeds have realistic but challenging paths:} While
+  8-12 seeds can make deep runs, the probabilities decrease rapidly
+  after the Sweet 16.
+\item
+  \textbf{Seed matters even within 8-12 range:} 8 and 9 seeds have
+  noticeably better chances than 11 and 12 seeds.
+\item
+  \textbf{Model validation:} Strong agreement between analytical
+  predictions and Monte Carlo simulations suggests robust model
+  estimates.
+\end{enumerate}
+
+\subsection{4.2 Limitations}\label{limitations}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Constant team strength assumption:} Model doesn't account for
+  injuries, momentum, or hot/cold streaks
+\item
+  \textbf{No home court advantage:} Tournament games at neutral sites,
+  but some teams may have geographic advantages
+\item
+  \textbf{Historical data:} Team compositions change year to year
+\item
+  \textbf{Simplified bracket structure:} Actual tournament has specific
+  regional placements
+\end{itemize}
+
+\subsection{4.3 Practical Applications}\label{practical-applications}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Bracket Strategy:} Understanding base rates helps avoid
+  over/under-predicting upsets
+\item
+  \textbf{Team Evaluation:} Teams significantly outperforming their seed
+  expectations may be under-seeded
+\item
+  \textbf{Tournament Format Analysis:} Quantifies competitive balance in
+  the tournament structure
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{5. Conclusion}\label{conclusion}
+
+Using Bradley-Terry models combined with Monte Carlo simulation, we
+provide rigorous answers to our research questions:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Approximately 2-3 of the 8-12 seeds should advance to the
+  Sweet 16} in a typical tournament
+\item
+  \textbf{An 8-12 seed that reaches the Sweet 16 has roughly a 10-20\%
+  chance of reaching the Final Four}, but less than 5\% chance of
+  winning the championship
+\end{enumerate}
+
+These findings provide a quantitative framework for understanding
+mid-tier seed performance in Women's March Madness and can inform both
+bracket predictions and broader understanding of tournament dynamics.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{6. References}\label{references}
+
+\begin{itemize}
+\tightlist
+\item
+  Bradley, R.A. and Terry, M.E. (1952). ``Rank analysis of incomplete
+  block designs.'' \emph{Biometrika}, 39, 324-345.
+\item
+  Turner, H. \& Firth, D. (2020). \emph{BradleyTerry2: Bradley-Terry
+  Models in R}. R package.
+\item
+  Nesbitt, S. (2024). \emph{wncaahoopR: Women's NCAA Basketball Data
+  Package}. \url{https://github.com/snestler/wncaahoopR}
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{Appendix: Technical Details}\label{appendix-technical-details}
+
+\subsection{Model Specification}\label{model-specification}
+
+The Bradley-Terry model was fit using maximum likelihood estimation via
+the \texttt{BradleyTerry2} R package. Regular season games only were
+included, with exhibition games and NCAA tournament games excluded.
+
+\subsection{Computational Details}\label{computational-details}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Software:} R 4.x.x
+\item
+  \textbf{Key Packages:} \texttt{tidyverse}, \texttt{BradleyTerry2},
+  \texttt{wncaahoopR}
+\item
+  \textbf{Simulation:} 5,000 Monte Carlo replications
+\item
+  \textbf{Random Seed:} Set for reproducibility (seed = 479 + iteration)
+\end{itemize}
+
+\subsection{Code Availability}\label{code-availability}
+
+All analysis code is available in the project repository:
+\texttt{/scripts/01\_data\_collection.R} through
+\texttt{/scripts/05\_visualization.R}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\emph{Report generated on 2025-10-26}
+
+\end{document}

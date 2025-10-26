@@ -60,7 +60,7 @@ cat("✓ All required packages installed\n\n")
 # =============================================================================
 
 scripts <- c(
-    "01_data_collection_REAL_WNCAAHOOP.R",
+    "01_data_collection_UPDATED.R",
     "02_bradley_terry_model.R",
     "03_seed_analysis.R",
     "04_tournament_simulation.R",

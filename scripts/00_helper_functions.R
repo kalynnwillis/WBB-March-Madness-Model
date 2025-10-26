@@ -6,6 +6,22 @@
 # =============================================================================
 # Statistical Functions
 # =============================================================================
+# create dir if missing (safe, idempotent)
+dir_create_safe <- function(...) {
+    dir.create(here::here(...), recursive = TRUE, showWarnings = FALSE)
+}
+# make sure targets exist before writing
+dir_create_safe("results", "tables")
+dir_create_safe("results", "figures")
+
+
+# String concat like ggplot2
+`%+%` <- function(a, b) paste0(a, b)
+
+# Safe dir create
+dir_create_safe <- function(...) {
+    dir.create(here::here(...), recursive = TRUE, showWarnings = FALSE)
+}
 
 # Inverse logit function (logistic)
 inv_logit <- function(x) {

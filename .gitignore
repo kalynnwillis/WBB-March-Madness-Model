@@ -10,6 +10,9 @@ data/raw/*.csv
 data/raw/*.rds
 data/processed/*.rds
 results/tables/all_simulations.rds
+data/processed/
+results/tables/
+results/figures/
 
 # Output files
 *.html

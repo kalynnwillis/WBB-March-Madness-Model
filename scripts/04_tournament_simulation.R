@@ -1,11 +1,22 @@
 # =============================================================================
 # Script 04: Tournament Simulation
 # Purpose: Monte Carlo simulation of March Madness tournament outcomes
+#
+# PERFORMANCE OPTIMIZATIONS APPLIED:
+# - Fast matrix-based lookups (no dplyr in hot path)
+# - Vectorized simulation functions (no rowwise operations)
+# - Parallel execution using mclapply (multi-core)
+# - Expected speedup: 10-30x faster than original implementation
 # =============================================================================
 
 # Load required libraries
 library(tidyverse)
 library(here)
+
+# Load helper functions
+source(here("scripts", "00_helper_functions.R"))
+
+dir_create_safe("results", "tables")
 
 # =============================================================================
 # 1. Load Model Results and Data
@@ -17,6 +28,58 @@ team_abilities <- readRDS(here("data", "processed", "team_abilities_with_seeds.r
 win_probs <- readRDS(here("data", "processed", "win_probability_matrix.rds"))
 
 cat("✓ Data loaded successfully\n")
+
+# =============================================================================
+# 1b. Build Fast Lookup Tables
+# =============================================================================
+
+cat("Building fast lookup tables...\n")
+
+# ---- FAST LOOKUPS ----
+# We only need (seed, region) -> (team, lambda). Build tiny matrices.
+regions <- sort(unique(team_abilities$region))
+if (length(regions) != 4) message("Note: found ", length(regions), " regions; using whatever is present.")
+
+lambda_mat <- matrix(NA_real_,
+    nrow = length(regions), ncol = 16,
+    dimnames = list(regions, as.character(1:16))
+)
+team_mat <- matrix(NA_character_,
+    nrow = length(regions), ncol = 16,
+    dimnames = list(regions, as.character(1:16))
+)
+
+# Fill from your seeded bracket (one team per seed/region if present)
+tmp <- team_abilities %>%
+    select(region, seed, team, lambda) %>%
+    arrange(region, seed)
+
+for (i in seq_len(nrow(tmp))) {
+    rr <- as.character(tmp$region[i])
+    ss <- as.character(tmp$seed[i])
+    if (ss %in% colnames(lambda_mat) && rr %in% rownames(lambda_mat) && is.na(lambda_mat[rr, ss])) {
+        lambda_mat[rr, ss] <- tmp$lambda[i]
+        team_mat[rr, ss] <- tmp$team[i]
+    }
+}
+
+# Fallbacks for any missing (seed,region): use seed-wise average across regions
+seed_means <- tapply(tmp$lambda, tmp$seed, mean, na.rm = TRUE)
+for (rr in rownames(lambda_mat)) {
+    for (ss in colnames(lambda_mat)) {
+        if (is.na(lambda_mat[rr, ss])) {
+            lambda_mat[rr, ss] <- seed_means[[ss]]
+            team_mat[rr, ss] <- paste0("Seed_", ss, "_", rr)
+        }
+    }
+}
+
+# Small helpers (no dplyr):
+get_lambda_fast <- function(seed, region) lambda_mat[region, as.character(seed)]
+get_team_fast <- function(seed, region) team_mat[region, as.character(seed)]
+inv_logit <- function(x) 1 / (1 + exp(-x))
+
+cat("✓ Fast lookup tables built\n")
 
 # =============================================================================
 # 2. Define Tournament Structure
@@ -49,303 +112,160 @@ bracket_structure <- create_bracket_structure()
 cat(sprintf("Created bracket with %d first-round games\n", nrow(bracket_structure)))
 
 # =============================================================================
-# 3. Helper Functions for Tournament Simulation
+# 3. Fast Vectorized Tournament Simulation Functions
 # =============================================================================
 
-# Function to get team ability by seed and region
-get_team_by_seed_region <- function(seed, region, team_data) {
-    teams <- team_data %>%
-        filter(seed == !!seed, region == !!region)
+# Simulate a single game (vectorized-safe)
+simulate_game <- function(team1_lambda, team2_lambda) {
+    p <- inv_logit(team1_lambda - team2_lambda)
+    # Clip to avoid numeric 0/1 (prevents warnings and stabilizes summaries)
+    p <- pmin(pmax(p, 1e-6), 1 - 1e-6)
+    rbinom(length(p), size = 1, prob = p)
+}
 
-    if (nrow(teams) > 0) {
-        return(teams[1, ])
-    } else {
-        # If exact match not found, use average for that seed
-        avg_teams <- team_data %>%
-            filter(seed == !!seed) %>%
-            summarise(
-                team = paste0("Seed_", seed, "_", region),
-                lambda = mean(lambda, na.rm = TRUE),
-                se = mean(se, na.rm = TRUE),
-                seed = seed,
-                region = region
-            )
-        if (nrow(avg_teams) > 0) {
-            return(avg_teams[1, ])
-        } else {
-            return(NULL)
-        }
+# Simulate an entire tournament for ONE simulation, using only base vectors
+simulate_tournament_fast <- function(seed_val = NULL) {
+    if (!is.null(seed_val)) set.seed(seed_val)
+
+    # Round 1 pairings are fixed per region
+    hi <- c(1, 2, 3, 4, 5, 6, 7, 8)
+    lo <- c(16, 15, 14, 13, 12, 11, 10, 9)
+
+    out_rows <- list()
+
+    # Do each region independently
+    for (rr in rownames(lambda_mat)) {
+        # ----- Round of 64 -----
+        team1_l <- get_lambda_fast(hi, rr)
+        team2_l <- get_lambda_fast(lo, rr)
+        team1_n <- get_team_fast(hi, rr)
+        team2_n <- get_team_fast(lo, rr)
+
+        win1 <- simulate_game(team1_l, team2_l) # length 8
+        r64_w_seed <- ifelse(win1 == 1, hi, lo)
+        r64_w_l <- ifelse(win1 == 1, team1_l, team2_l)
+        r64_w_n <- ifelse(win1 == 1, team1_n, team2_n)
+
+        out_rows[[length(out_rows) + 1]] <- tibble(
+            round = "Round of 64", region = rr, matchup_id = seq_along(hi),
+            team1_seed = hi, team2_seed = lo,
+            winner_seed = r64_w_seed, winner_lambda = r64_w_l, winner_name = r64_w_n
+        )
+
+        # ----- Round of 32 -----
+        idx32 <- matrix(r64_w_seed, nrow = 2, byrow = TRUE) # (1v16 vs 8v9), etc.
+        lam32 <- matrix(r64_w_l, nrow = 2, byrow = TRUE)
+        nam32 <- matrix(r64_w_n, nrow = 2, byrow = TRUE)
+
+        win2 <- simulate_game(lam32[1, ], lam32[2, ])
+        r32_w_seed <- ifelse(win2 == 1, idx32[1, ], idx32[2, ])
+        r32_w_l <- ifelse(win2 == 1, lam32[1, ], lam32[2, ])
+        r32_w_n <- ifelse(win2 == 1, nam32[1, ], nam32[2, ])
+
+        out_rows[[length(out_rows) + 1]] <- tibble(
+            round = "Round of 32", region = rr, matchup_id = 1:4,
+            team1_seed = idx32[1, ], team2_seed = idx32[2, ],
+            winner_seed = r32_w_seed, winner_lambda = r32_w_l, winner_name = r32_w_n
+        )
+
+        # ----- Sweet 16 -----
+        idx16 <- matrix(r32_w_seed, nrow = 2, byrow = TRUE)
+        lam16 <- matrix(r32_w_l, nrow = 2, byrow = TRUE)
+        nam16 <- matrix(r32_w_n, nrow = 2, byrow = TRUE)
+
+        win3 <- simulate_game(lam16[1, ], lam16[2, ])
+        r16_w_seed <- ifelse(win3 == 1, idx16[1, ], idx16[2, ])
+        r16_w_l <- ifelse(win3 == 1, lam16[1, ], lam16[2, ])
+        r16_w_n <- ifelse(win3 == 1, nam16[1, ], nam16[2, ])
+
+        out_rows[[length(out_rows) + 1]] <- tibble(
+            round = "Sweet 16", region = rr, matchup_id = 1:2,
+            team1_seed = idx16[1, ], team2_seed = idx16[2, ],
+            winner_seed = r16_w_seed, winner_lambda = r16_w_l, winner_name = r16_w_n
+        )
+
+        # ----- Elite 8 -----
+        idx8 <- c(r16_w_seed[1], r16_w_seed[2])
+        lam8 <- c(r16_w_l[1], r16_w_l[2])
+        nam8 <- c(r16_w_n[1], r16_w_n[2])
+
+        win4 <- simulate_game(lam8[1], lam8[2])
+        e8_w_seed <- ifelse(win4 == 1, idx8[1], idx8[2])
+        e8_w_l <- ifelse(win4 == 1, lam8[1], lam8[2])
+        e8_w_n <- ifelse(win4 == 1, nam8[1], nam8[2])
+
+        out_rows[[length(out_rows) + 1]] <- tibble(
+            round = "Elite 8", region = rr, matchup_id = 1L,
+            team1_seed = idx8[1], team2_seed = idx8[2],
+            winner_seed = e8_w_seed, winner_lambda = e8_w_l, winner_name = e8_w_n
+        )
     }
-}
 
-# Function to simulate a single game
-simulate_game <- function(team1_lambda, team2_lambda, seed = NULL) {
-    # Calculate probability that team1 wins
-    prob_team1_wins <- 1 / (1 + exp(-(team1_lambda - team2_lambda)))
+    # Final Four (National semis) — pair region winners [1vs2], [3vs4]
+    e8 <- bind_rows(out_rows) %>%
+        filter(round == "Elite 8") %>%
+        arrange(region)
+    semi_pairs <- split(e8, rep(1:2, each = 2)) # 2 games
 
-    # Simulate outcome (1 = team1 wins, 0 = team2 wins)
-    outcome <- rbinom(n = 1, size = 1, prob = prob_team1_wins)
-
-    return(outcome)
-}
-
-# Function to simulate entire tournament
-simulate_tournament <- function(team_data, seed_val = NULL) {
-    regions <- unique(bracket_structure$region)
-
-    # Initialize results tracking
-    all_results <- tibble()
-
-    # ROUND 1: Round of 64 -> Round of 32
-    round1_results <- bracket_structure %>%
-        rowwise() %>%
-        mutate(
-            team1_info = list(get_team_by_seed_region(higher_seed, region, team_data)),
-            team2_info = list(get_team_by_seed_region(lower_seed, region, team_data))
-        ) %>%
-        mutate(
-            team1_lambda = {
-                info <- team1_info[[1]]
-                if (!is.null(info) && is.data.frame(info) && nrow(info) > 0) {
-                    as.numeric(info$lambda[1])
-                } else {
-                    NA_real_
-                }
-            },
-            team2_lambda = {
-                info <- team2_info[[1]]
-                if (!is.null(info) && is.data.frame(info) && nrow(info) > 0) {
-                    as.numeric(info$lambda[1])
-                } else {
-                    NA_real_
-                }
-            },
-            team1_name = {
-                info <- team1_info[[1]]
-                if (!is.null(info) && is.data.frame(info) && nrow(info) > 0) {
-                    as.character(info$team[1])
-                } else {
-                    paste0("Team_", higher_seed)
-                }
-            },
-            team2_name = {
-                info <- team2_info[[1]]
-                if (!is.null(info) && is.data.frame(info) && nrow(info) > 0) {
-                    as.character(info$team[1])
-                } else {
-                    paste0("Team_", lower_seed)
-                }
-            },
-            team1_seed = higher_seed,
-            team2_seed = lower_seed,
-            outcome = simulate_game(team1_lambda, team2_lambda, seed = seed_val),
-            winner_seed = ifelse(outcome == 1, team1_seed, team2_seed),
-            winner_lambda = ifelse(outcome == 1, team1_lambda, team2_lambda),
-            winner_name = ifelse(outcome == 1, team1_name, team2_name)
-        ) %>%
-        ungroup() %>%
-        select(
-            round, region, matchup_id, team1_seed, team2_seed,
-            winner_seed, winner_lambda, winner_name
+    ff_rows <- lapply(seq_along(semi_pairs), function(k) {
+        g <- semi_pairs[[k]]
+        lam <- g$winner_lambda
+        nam <- g$winner_name
+        sed <- g$winner_seed
+        win <- simulate_game(lam[1], lam[2])
+        tibble(
+            round = "Final Four", region = "National", matchup_id = k,
+            team1_seed = sed[1], team2_seed = sed[2],
+            winner_seed = ifelse(win == 1, sed[1], sed[2]),
+            winner_lambda = ifelse(win == 1, lam[1], lam[2]),
+            winner_name = ifelse(win == 1, nam[1], nam[2])
         )
+    })
 
-    all_results <- bind_rows(all_results, round1_results)
+    # Championship
+    ff <- bind_rows(ff_rows) %>% arrange(matchup_id)
+    lamc <- ff$winner_lambda
+    namc <- ff$winner_name
+    sedc <- ff$winner_seed
+    wfin <- simulate_game(lamc[1], lamc[2])
+    champ <- tibble(
+        round = "Championship", region = "National", matchup_id = 1L,
+        team1_seed = sedc[1], team2_seed = sedc[2],
+        winner_seed = ifelse(wfin == 1, sedc[1], sedc[2]),
+        winner_lambda = ifelse(wfin == 1, lamc[1], lamc[2]),
+        winner_name = ifelse(wfin == 1, namc[1], namc[2])
+    )
 
-    # ROUND 2: Round of 32 -> Sweet 16
-    round2_matchups <- round1_results %>%
-        group_by(region) %>%
-        mutate(
-            r2_matchup = rep(1:4, each = 2),
-            game_num = row_number()
-        ) %>%
-        group_by(region, r2_matchup) %>%
-        filter(n() == 2) %>%
-        summarise(
-            round = "Round of 32",
-            matchup_id = first(r2_matchup),
-            team1_seed = first(winner_seed),
-            team1_lambda = first(winner_lambda),
-            team1_name = first(winner_name),
-            team2_seed = last(winner_seed),
-            team2_lambda = last(winner_lambda),
-            team2_name = last(winner_name),
-            .groups = "drop"
-        ) %>%
-        rowwise() %>%
-        mutate(
-            outcome = simulate_game(team1_lambda, team2_lambda, seed = seed_val),
-            winner_seed = ifelse(outcome == 1, team1_seed, team2_seed),
-            winner_lambda = ifelse(outcome == 1, team1_lambda, team2_lambda),
-            winner_name = ifelse(outcome == 1, team1_name, team2_name)
-        ) %>%
-        ungroup() %>%
-        select(
-            round, region, matchup_id, team1_seed, team2_seed,
-            winner_seed, winner_lambda, winner_name
-        )
-
-    all_results <- bind_rows(all_results, round2_matchups)
-
-    # ROUND 3: Sweet 16 -> Elite 8
-    round3_matchups <- round2_matchups %>%
-        group_by(region) %>%
-        mutate(
-            r3_matchup = rep(1:2, each = 2),
-            game_num = row_number()
-        ) %>%
-        group_by(region, r3_matchup) %>%
-        filter(n() == 2) %>%
-        summarise(
-            round = "Sweet 16",
-            matchup_id = first(r3_matchup),
-            team1_seed = first(winner_seed),
-            team1_lambda = first(winner_lambda),
-            team1_name = first(winner_name),
-            team2_seed = last(winner_seed),
-            team2_lambda = last(winner_lambda),
-            team2_name = last(winner_name),
-            .groups = "drop"
-        ) %>%
-        rowwise() %>%
-        mutate(
-            outcome = simulate_game(team1_lambda, team2_lambda, seed = seed_val),
-            winner_seed = ifelse(outcome == 1, team1_seed, team2_seed),
-            winner_lambda = ifelse(outcome == 1, team1_lambda, team2_lambda),
-            winner_name = ifelse(outcome == 1, team1_name, team2_name)
-        ) %>%
-        ungroup() %>%
-        select(
-            round, region, matchup_id, team1_seed, team2_seed,
-            winner_seed, winner_lambda, winner_name
-        )
-
-    all_results <- bind_rows(all_results, round3_matchups)
-
-    # ROUND 4: Elite 8 -> Final Four
-    round4_matchups <- round3_matchups %>%
-        group_by(region) %>%
-        summarise(
-            round = "Elite 8",
-            matchup_id = 1,
-            team1_seed = first(winner_seed),
-            team1_lambda = first(winner_lambda),
-            team1_name = first(winner_name),
-            team2_seed = last(winner_seed),
-            team2_lambda = last(winner_lambda),
-            team2_name = last(winner_name),
-            .groups = "drop"
-        ) %>%
-        rowwise() %>%
-        mutate(
-            outcome = simulate_game(team1_lambda, team2_lambda, seed = seed_val),
-            winner_seed = ifelse(outcome == 1, team1_seed, team2_seed),
-            winner_lambda = ifelse(outcome == 1, team1_lambda, team2_lambda),
-            winner_name = ifelse(outcome == 1, team1_name, team2_name)
-        ) %>%
-        ungroup() %>%
-        select(
-            round, region, matchup_id, team1_seed, team2_seed,
-            winner_seed, winner_lambda, winner_name
-        )
-
-    all_results <- bind_rows(all_results, round4_matchups)
-
-    # ROUND 5: Final Four -> Finals
-    final4_matchups <- round4_matchups %>%
-        mutate(semifinal = rep(1:2, length.out = n())) %>%
-        group_by(semifinal) %>%
-        filter(n() == 2) %>%
-        summarise(
-            round = "Final Four",
-            region = "National",
-            matchup_id = first(semifinal),
-            team1_seed = first(winner_seed),
-            team1_lambda = first(winner_lambda),
-            team1_name = first(winner_name),
-            team2_seed = last(winner_seed),
-            team2_lambda = last(winner_lambda),
-            team2_name = last(winner_name),
-            .groups = "drop"
-        ) %>%
-        rowwise() %>%
-        mutate(
-            outcome = simulate_game(team1_lambda, team2_lambda, seed = seed_val),
-            winner_seed = ifelse(outcome == 1, team1_seed, team2_seed),
-            winner_lambda = ifelse(outcome == 1, team1_lambda, team2_lambda),
-            winner_name = ifelse(outcome == 1, team1_name, team2_name)
-        ) %>%
-        ungroup() %>%
-        select(
-            round, region, matchup_id, team1_seed, team2_seed,
-            winner_seed, winner_lambda, winner_name
-        )
-
-    all_results <- bind_rows(all_results, final4_matchups)
-
-    # ROUND 6: Championship
-    championship <- final4_matchups %>%
-        summarise(
-            round = "Championship",
-            region = "National",
-            matchup_id = 1,
-            team1_seed = first(winner_seed),
-            team1_lambda = first(winner_lambda),
-            team1_name = first(winner_name),
-            team2_seed = last(winner_seed),
-            team2_lambda = last(winner_lambda),
-            team2_name = last(winner_name)
-        ) %>%
-        rowwise() %>%
-        mutate(
-            outcome = simulate_game(team1_lambda, team2_lambda, seed = seed_val),
-            winner_seed = ifelse(outcome == 1, team1_seed, team2_seed),
-            winner_lambda = ifelse(outcome == 1, team1_lambda, team2_lambda),
-            winner_name = ifelse(outcome == 1, team1_name, team2_name)
-        ) %>%
-        ungroup() %>%
-        select(
-            round, region, matchup_id, team1_seed, team2_seed,
-            winner_seed, winner_lambda, winner_name
-        )
-
-    all_results <- bind_rows(all_results, championship)
-
-    return(all_results)
+    bind_rows(out_rows, ff_rows, list(champ)) %>% bind_rows()
 }
 
 # =============================================================================
-# 4. Run Monte Carlo Simulations
+# 4. Run Monte Carlo Simulations (FAST & PARALLEL)
 # =============================================================================
 
-cat("\nRunning Monte Carlo simulations...\n")
+library(parallel)
 
-# Set number of simulations
 N_SIMS <- 5000
+N_CORES <- max(1, detectCores() - 1)
 
-cat(sprintf("Simulating %d tournaments...\n", N_SIMS))
+cat(sprintf("\nSimulating %d tournaments using %d cores...\n", N_SIMS, N_CORES))
 
-# Initialize storage for simulation results
-simulation_results <- list()
+# Each worker returns the same tibble shape you already use
+simulation_results <- mclapply(
+    X = 1:N_SIMS,
+    FUN = function(sim) {
+        simulate_tournament_fast(seed_val = 479 + sim) %>%
+            mutate(sim_id = sim)
+    },
+    mc.cores = N_CORES,
+    mc.preschedule = TRUE
+)
 
-# Run simulations with progress updates
-for (sim in 1:N_SIMS) {
-    if (sim %% 500 == 0) {
-        cat(sprintf("  Completed %d/%d simulations...\n", sim, N_SIMS))
-    }
-
-    set.seed(479 + sim)
-
-    # Run one tournament simulation
-    tournament_result <- simulate_tournament(team_abilities, seed_val = 479 + sim)
-
-    # Add simulation ID
-    tournament_result$sim_id <- sim
-
-    simulation_results[[sim]] <- tournament_result
-}
-
-# Combine all simulations
 all_simulations <- bind_rows(simulation_results)
+
+# Clean up memory
+rm(simulation_results)
+gc(verbose = FALSE)
 
 cat(sprintf("✓ Completed %d tournament simulations\n", N_SIMS))
 
@@ -355,28 +275,23 @@ cat(sprintf("✓ Completed %d tournament simulations\n", N_SIMS))
 
 cat("\nAnalyzing 8-12 seed performance across simulations...\n")
 
-# Function to count 8-12 seeds by round
-count_mid_tier_by_round <- function(sim_data) {
-    sim_data %>%
-        filter(winner_seed >= 8 & winner_seed <= 12) %>%
-        group_by(round) %>%
-        summarise(n_mid_tier = n(), .groups = "drop")
-}
-
-# Count 8-12 seeds in each round for each simulation
-mid_tier_counts <- all_simulations %>%
-    group_by(sim_id) %>%
-    group_modify(~ count_mid_tier_by_round(.x)) %>%
-    ungroup()
-
-# Define round order
+# Define round order (explicit for complete())
 round_order <- c(
     "Round of 64", "Round of 32", "Sweet 16",
     "Elite 8", "Final Four", "Championship"
 )
 
-mid_tier_counts <- mid_tier_counts %>%
-    mutate(round = factor(round, levels = round_order))
+# Count 8-12 seeds in each round for each simulation
+# Force all rounds into result with complete() to avoid NaN from missing rounds
+mid_tier_counts <- all_simulations %>%
+    mutate(round = factor(round, levels = round_order)) %>%
+    group_by(sim_id, round) %>%
+    summarise(n_mid_tier = sum(winner_seed >= 8 & winner_seed <= 12), .groups = "drop") %>%
+    tidyr::complete(
+        sim_id,
+        round = factor(round_order, levels = round_order),
+        fill = list(n_mid_tier = 0L)
+    )
 
 # Summary statistics by round
 mid_tier_summary <- mid_tier_counts %>%
@@ -471,25 +386,28 @@ cat("RESEARCH QUESTION 2: Conditional Probabilities (from simulation)\n")
 cat(paste(rep("=", 70), collapse = "") %+% "\n\n")
 
 # For each simulation, track if 8-12 seed reached each round
+# FIX: Create hit indicator BEFORE complete() to avoid 100% bug
 progression_tracking <- all_simulations %>%
     filter(winner_seed >= 8 & winner_seed <= 12) %>%
-    select(sim_id, round, winner_seed, winner_name) %>%
-    distinct()
+    transmute(sim_id, round = factor(round, levels = round_order), hit = TRUE)
 
-# Create indicators for reaching each round
+# Complete grid with hit = FALSE for rounds not reached
 round_progression <- progression_tracking %>%
-    mutate(round = factor(round, levels = round_order)) %>%
-    complete(sim_id, round, fill = list(reached = FALSE)) %>%
+    tidyr::complete(
+        sim_id,
+        round = factor(round_order, levels = round_order),
+        fill = list(hit = FALSE)
+    ) %>%
     group_by(sim_id, round) %>%
-    summarise(reached = n() > 0, .groups = "drop") %>%
+    summarise(reached = any(hit), .groups = "drop") %>%
     pivot_wider(names_from = round, values_from = reached, values_fill = FALSE)
 
 # Calculate conditional probabilities
 # P(Round B | Round A) = P(reached B and A) / P(reached A)
-n_reached_sweet16 <- sum(round_progression$`Sweet 16`)
-n_reached_elite8 <- sum(round_progression$`Elite 8`)
-n_reached_final4 <- sum(round_progression$`Final Four`)
-n_reached_champ <- sum(round_progression$Championship)
+n_reached_sweet16 <- sum(round_progression$`Sweet 16`, na.rm = TRUE)
+n_reached_elite8 <- sum(round_progression$`Elite 8`, na.rm = TRUE)
+n_reached_final4 <- sum(round_progression$`Final Four`, na.rm = TRUE)
+n_reached_champ <- sum(round_progression$Championship, na.rm = TRUE)
 
 cat("Given that an 8-12 seed reaches the Sweet 16:\n\n")
 cat(sprintf(

@@ -1,0 +1,33 @@
+# R files
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+
+# Data files (can be large)
+data/raw/*.csv
+data/raw/*.rds
+data/processed/*.rds
+results/tables/all_simulations.rds
+
+# Output files
+*.html
+*.pdf
+*.log
+*.aux
+*.out
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Temporary files
+*~
+*.tmp
+*.bak
+

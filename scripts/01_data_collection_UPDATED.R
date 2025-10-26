@@ -125,62 +125,67 @@ if (use_numeric_regular) {
     games_cleaned <- games_combined |>
         filter(lubridate::month(game_date) < 3 | (lubridate::month(game_date) == 3 & lubridate::day(game_date) < 15))
 }
-# ---- Division I filter (use wehoop, not hoopR) ----
-if (!requireNamespace("wehoop", quietly = TRUE)) install.packages("wehoop")
-library(wehoop)
-
-# helper to pick a column if schemas differ
-pick <- function(cands, nm) {
-    hit <- intersect(cands, nm)
-    if (length(hit)) hit[1] else NA_character_
-}
+# ---- Division I filter (robust guard against ESPN schema changes) ----
 normalize_name <- function(x) stringr::str_squish(stringr::str_to_lower(x))
 
-# pull team metadata from wehoop and auto-map the name column
-wbb_teams <- wehoop::espn_wbb_teams()
-nm_t <- names(wbb_teams)
+cat("Attempting Division I filter via wehoop teams endpoint...\n")
+d1_teams <- tryCatch(
+    suppressMessages(purrr::map_dfr(SEASONS, wehoop::espn_wbb_teams)),
+    error = function(e) NULL
+)
 
-name_col <- pick(c("display_name", "short_display_name", "name", "team", "school"), nm_t)
-class_col <- pick(c("classification", "org", "org_type"), nm_t)
-div_col <- pick(c("division", "division_name", "division_short"), nm_t)
+# Robust fallback logic: prefer ID-based joins when available, else name-normalization
+if (is.null(d1_teams) || !"team_id" %in% names(d1_teams)) {
+    cat("⚠️  teams endpoint unavailable or schema changed; using name-normalized + connectivity filter only\n")
+    # The connected-component + min-games approach below will handle quality control
+    # No additional D1 filtering applied
+} else {
+    cat("✓ Successfully pulled D1 teams metadata\n")
+    # Try to join on team_id if games have IDs; otherwise fall back to name-normalized join
+    nm_t <- names(d1_teams)
 
-# conservative DI filter:
-wbb_di <- wbb_teams |>
-    dplyr::mutate(
-        .team_name = if (!is.na(name_col)) .data[[name_col]] else NA_character_,
-        .class     = if (!is.na(class_col)) .data[[class_col]] else NA_character_,
-        .div       = if (!is.na(div_col)) .data[[div_col]] else NA_character_
-    ) |>
-    # keep rows that look like NCAA Division I
-    dplyr::filter(
-        # classification sometimes "ncaa" or "NCAA"
-        is.na(.class) | stringr::str_detect(tolower(.class), "ncaa"),
-        # division sometimes "1", "I", "Division I", or missing; keep when matches I/1
-        is.na(.div) | stringr::str_detect(tolower(.div), "^(1|i|division i)\\b")
-    ) |>
-    dplyr::transmute(
-        di_team = .team_name,
-        di_key = normalize_name(.team_name)
-    ) |>
-    dplyr::distinct() |>
-    dplyr::filter(!is.na(di_key), di_key != "")
+    name_col <- pick(c("display_name", "short_display_name", "name", "team", "school"), nm_t)
+    class_col <- pick(c("classification", "org", "org_type"), nm_t)
+    div_col <- pick(c("division", "division_name", "division_short"), nm_t)
 
-# build keys on schedule names and keep only DI vs DI
-games_combined <- games_combined |>
-    dplyr::mutate(
-        home_key = normalize_name(home_team),
-        away_key = normalize_name(away_team)
-    ) |>
-    dplyr::left_join(wbb_di, by = c("home_key" = "di_key")) |>
-    dplyr::rename(home_di_team = di_team) |>
-    dplyr::left_join(wbb_di, by = c("away_key" = "di_key")) |>
-    dplyr::rename(away_di_team = di_team) |>
-    dplyr::filter(!is.na(home_di_team), !is.na(away_di_team)) |>
-    dplyr::mutate(
-        home_team = home_di_team,
-        away_team = away_di_team
-    ) |>
-    dplyr::select(-home_di_team, -away_di_team, -home_key, -away_key)
+    # conservative DI filter:
+    wbb_di <- d1_teams |>
+        dplyr::mutate(
+            .team_name = if (!is.na(name_col)) .data[[name_col]] else NA_character_,
+            .class     = if (!is.na(class_col)) .data[[class_col]] else NA_character_,
+            .div       = if (!is.na(div_col)) .data[[div_col]] else NA_character_
+        ) |>
+        # keep rows that look like NCAA Division I
+        dplyr::filter(
+            # classification sometimes "ncaa" or "NCAA"
+            is.na(.class) | stringr::str_detect(tolower(.class), "ncaa"),
+            # division sometimes "1", "I", "Division I", or missing; keep when matches I/1
+            is.na(.div) | stringr::str_detect(tolower(.div), "^(1|i|division i)\\b")
+        ) |>
+        dplyr::transmute(
+            di_team = .team_name,
+            di_key = normalize_name(.team_name)
+        ) |>
+        dplyr::distinct() |>
+        dplyr::filter(!is.na(di_key), di_key != "")
+
+    # build keys on schedule names and keep only DI vs DI
+    games_combined <- games_combined |>
+        dplyr::mutate(
+            home_key = normalize_name(home_team),
+            away_key = normalize_name(away_team)
+        ) |>
+        dplyr::left_join(wbb_di, by = c("home_key" = "di_key")) |>
+        dplyr::rename(home_di_team = di_team) |>
+        dplyr::left_join(wbb_di, by = c("away_key" = "di_key")) |>
+        dplyr::rename(away_di_team = di_team) |>
+        dplyr::filter(!is.na(home_di_team), !is.na(away_di_team)) |>
+        dplyr::mutate(
+            home_team = home_di_team,
+            away_team = away_di_team
+        ) |>
+        dplyr::select(-home_di_team, -away_di_team, -home_key, -away_key)
+}
 
 # Completed games with valid scores, no ties
 games_cleaned <- games_cleaned |>
@@ -274,9 +279,22 @@ cat(sprintf(
 ))
 
 # -------- Seed a bracket (PLACEHOLDER from performance) --------
-# ⚠️ WARNING: These seeds are synthetic (based on win %) for demonstration only!
-# Real seeds should come from actual NCAA tournament bracket.
-# Until you have real seeds, seed-specific claims are illustrative only.
+# ============================================================================
+# ⚠️ CRITICAL NOTE: SYNTHETIC SEEDING
+# ============================================================================
+# These seeds are SYNTHETIC, generated from regular-season win% ranking.
+# They do NOT reflect actual NCAA tournament committee selections.
+#
+# Implications:
+#   • Seed matchups (8v9, 5v12, etc.) are model-based projections
+#   • All seed-conditioned results are "what-if" scenarios, not historical
+#   • The analysis demonstrates methodology applicable to real brackets
+#
+# To use real seeds:
+#   1. Create tournament_seeds.csv with columns: season, team, seed, region
+#   2. Replace the synthetic seeding block below with:
+#      tournament_seeds <- read_csv("path/to/real_seeds.csv")
+# ============================================================================
 cat("\n⚠️  Creating PLACEHOLDER bracket from win percentage (not real seeds)\n")
 team_perf <- games_cleaned |>
     transmute(team = home_team, win = home_winner) |>

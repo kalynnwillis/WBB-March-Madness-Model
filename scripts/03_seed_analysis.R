@@ -77,14 +77,16 @@ first_round_analysis <- mid_tier_teams %>%
     ) %>%
     ungroup()
 
-# Summary by seed
+# Summary by seed - FIX 2: Use 10-90th percentile instead of min-max
 first_round_summary <- first_round_analysis %>%
     group_by(seed) %>%
     summarise(
         n_teams = n(),
         avg_prob_win = mean(prob_win_round1, na.rm = TRUE),
-        min_prob_win = min(prob_win_round1, na.rm = TRUE),
-        max_prob_win = max(prob_win_round1, na.rm = TRUE),
+        min_prob_win = min(prob_win_round1, na.rm = TRUE), # Keep for compatibility
+        max_prob_win = max(prob_win_round1, na.rm = TRUE), # Keep for compatibility
+        p10_prob_win = quantile(prob_win_round1, 0.10, na.rm = TRUE),
+        p90_prob_win = quantile(prob_win_round1, 0.90, na.rm = TRUE),
         expected_wins = sum(prob_win_round1, na.rm = TRUE)
     )
 
@@ -154,9 +156,9 @@ cat(sprintf("\nExpected # of 8-12 seeds in Sweet 16: %.2f\n", expected_in_sweet1
 # 5. Answer Research Question 1: Expected Advancement Past Round 2
 # =============================================================================
 
-cat("\n" %+% paste(rep("=", 70), collapse = "") %+% "\n")
+cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
 cat("RESEARCH QUESTION 1: Expected 8-12 Seeds to Advance Past Round 2\n")
-cat(paste(rep("=", 70), collapse = "") %+% "\n\n")
+cat(paste(rep("=", 70), collapse = ""), "\n\n", sep = "")
 
 cat(sprintf(
     "Expected 8-12 seeds to advance to Round of 32: %.2f\n",
@@ -230,11 +232,14 @@ print(deeper_summary)
 
 # =============================================================================
 # 7. Conditional Probabilities (Given Advancement Past Round 2)
+# NOTE: These are ANALYTICAL ESTIMATES based on heuristic opponent assumptions.
+#       For robust conditional probabilities, refer to Script 04 simulation results.
 # =============================================================================
 
-cat("\n" %+% paste(rep("=", 70), collapse = "") %+% "\n")
-cat("RESEARCH QUESTION 2: Conditional Probabilities\n")
-cat(paste(rep("=", 70), collapse = "") %+% "\n\n")
+cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
+cat("RESEARCH QUESTION 2: Conditional Probabilities (Analytical Estimates)\n")
+cat("⚠️  NOTE: Simulation-based conditionals (Script 04) are the primary results.\n")
+cat(paste(rep("=", 70), collapse = ""), "\n\n", sep = "")
 
 cat("Given that an 8-12 seed advances past Round 2 (reaches Sweet 16):\n\n")
 
@@ -383,9 +388,9 @@ saveRDS(key_results, file = here("results", "tables", "key_results.rds"))
 # 10. Generate Final Summary Report
 # =============================================================================
 
-cat("\n" %+% paste(rep("=", 70), collapse = "") %+% "\n")
+cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
 cat("8-12 SEED ANALYSIS SUMMARY\n")
-cat(paste(rep("=", 70), collapse = "") %+% "\n\n")
+cat(paste(rep("=", 70), collapse = ""), "\n\n", sep = "")
 
 cat("RESEARCH QUESTION 1:\n")
 cat("How many 8-12 seeds should we expect to advance past Round 2?\n\n")
@@ -398,7 +403,7 @@ cat(sprintf("        to the Sweet 16 (past Round 2).\n\n"))
 cat("Breakdown by seed:\n")
 print(advancement_summary)
 
-cat("\n" %+% paste(rep("-", 70), collapse = "") %+% "\n\n")
+cat("\n", paste(rep("-", 70), collapse = ""), "\n\n", sep = "")
 
 cat("RESEARCH QUESTION 2:\n")
 cat("Given that an 8-12 seed advanced past Round 2, what is the chance\n")
@@ -422,9 +427,9 @@ cat(sprintf(
     overall_conditional$prob_champion_given_s16 * 100
 ))
 
-cat("\n" %+% paste(rep("=", 70), collapse = "") %+% "\n")
+cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
 cat("✓ Seed analysis complete!\n")
-cat(paste(rep("=", 70), collapse = "") %+% "\n")
+cat(paste(rep("=", 70), collapse = ""), "\n", sep = "")
 
 # =============================================================================
 # NOTES:

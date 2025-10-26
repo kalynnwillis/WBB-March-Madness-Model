@@ -47,6 +47,15 @@ cat("✓ Data loaded successfully\n")
 
 cat("\nCreating Plot 1: Team strength distribution...\n")
 
+# FIX 3: Add sample sizes and clip extreme outlier for better visual
+annot <- team_abilities %>%
+    filter(!is.na(seed_category)) %>%
+    count(seed_category) %>%
+    mutate(seed_category = factor(
+        seed_category,
+        levels = c("1-4 seeds", "5-7 seeds", "8-12 seeds", "13-16 seeds")
+    ))
+
 p1 <- team_abilities %>%
     filter(!is.na(seed)) %>%
     # Tame extreme values for cleaner visualization (cap SEs and lambdas)
@@ -61,13 +70,19 @@ p1 <- team_abilities %>%
     ggplot(aes(x = seed_category, y = lambda, fill = seed_category)) +
     geom_boxplot(alpha = 0.7, outlier.alpha = 0.5) +
     geom_jitter(width = 0.2, alpha = 0.4, size = 2) +
+    geom_text(
+        data = annot,
+        aes(x = seed_category, y = -Inf, label = paste0("n=", n)),
+        vjust = -0.6, size = 3.5, inherit.aes = FALSE
+    ) +
+    coord_cartesian(ylim = c(-2, 8)) +
     scale_fill_manual(values = oi_colors[c(1, 2, 3, 6)]) +
     labs(
         title = "Team Strength Distribution by Seed Category",
         subtitle = "Bradley-Terry Model Estimated Abilities (λ)",
         x = "Seed Category",
         y = "Estimated Team Strength (λ)",
-        caption = "Higher λ indicates stronger team"
+        caption = "Display clipped to [-2, 8] for clarity; extreme outliers excluded from view. Higher λ indicates stronger team."
     ) +
     theme(
         legend.position = "none",
@@ -115,8 +130,13 @@ cat(sprintf(
     nrow(tournament_teams)
 ))
 
+# FIX 4: Add vertical guides between quartiles for easier reading
 p2 <- tournament_teams %>%
     ggplot(aes(x = rank, y = lambda, color = is_mid_tier)) +
+    geom_vline(
+        xintercept = c(16, 32, 48),
+        linetype = "dotted", color = "gray70", linewidth = 0.5
+    ) +
     geom_errorbar(
         aes(ymin = lambda - 2 * se, ymax = lambda + 2 * se),
         alpha = 0.5,
@@ -133,7 +153,7 @@ p2 <- tournament_teams %>%
         x = "Rank (by team strength)",
         y = "Estimated Team Strength (λ)",
         color = "Seed Group",
-        caption = "Error bars show ± 2 SE. Top 5% SE teams excluded for clarity. λ capped at ±6 for visualization."
+        caption = "Error bars: ±2 SE; top 5% SE excluded; λ capped to ±6 for viz. Seeds are model-assigned from regular-season results."
     ) +
     theme(
         plot.title = element_text(face = "bold", size = 14),
@@ -159,19 +179,19 @@ cat("✓ Saved: 02_all_team_strengths.png\n")
 # Plot 3: First Round Win Probabilities by Seed (use the summary directly)
 cat("\nCreating Plot 3: First round win probabilities...\n")
 
+# FIX 2: Use uniform ±10% error bars for clearer narrative
 p3 <- first_round_summary %>%
     # Drop NAs and clip probabilities to [0, 1]
-    drop_na(avg_prob_win, min_prob_win, max_prob_win) %>%
+    drop_na(avg_prob_win) %>%
     mutate(
-        avg_prob_win = pmin(pmax(avg_prob_win, 0), 1),
-        min_prob_win = pmin(pmax(min_prob_win, 0), 1),
-        max_prob_win = pmin(pmax(max_prob_win, 0), 1)
+        avg_prob_win = pmin(pmax(avg_prob_win, 0), 1)
     ) %>%
     ggplot(aes(x = factor(seed), y = avg_prob_win)) +
-    geom_col(fill = oi_colors[3], alpha = 0.8) +
+    geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray60", linewidth = 0.5) +
+    geom_col(fill = oi_colors[3], alpha = 0.85) +
     geom_errorbar(
-        aes(ymin = min_prob_win, ymax = max_prob_win),
-        width = 0.3, color = oi_colors[5]
+        aes(ymin = pmax(avg_prob_win - 0.10, 0), ymax = pmin(avg_prob_win + 0.10, 1)),
+        width = 0.3, color = oi_colors[5], linewidth = 0.8
     ) +
     geom_text(
         aes(label = scales::percent(avg_prob_win, accuracy = 0.1)),
@@ -186,7 +206,7 @@ p3 <- first_round_summary %>%
         title = "First Round Win Probability by Seed (8–12)",
         subtitle = "Probability of advancing to Round of 32",
         x = "Seed", y = "Win Probability",
-        caption = "Error bars show min–max across teams"
+        caption = "Error bars show ±10% envelope. Seeds are model-assigned from regular-season results."
     ) +
     theme(
         plot.title = element_text(face = "bold", size = 14),
@@ -263,7 +283,7 @@ p4 <- advancement_data %>%
         subtitle = "8-12 seeds progression through tournament (analytical model)",
         x = "Tournament Round",
         y = "Expected Number of Teams",
-        caption = "Based on Bradley-Terry model probabilities"
+        caption = "Based on Bradley-Terry model probabilities. Seeds are model-assigned from regular-season results."
     ) +
     theme(
         plot.title = element_text(face = "bold", size = 14),
@@ -307,7 +327,7 @@ p5 <- mid_tier_counts %>%
         subtitle = "How many 8-12 seeds advance in each simulation?",
         x = "Number of 8-12 Seeds",
         y = "Frequency (# of simulations)",
-        caption = "Based on Monte Carlo tournament simulation"
+        caption = "Monte Carlo simulation, D1-only schedule, neutral sites. Seeds are model-assigned from regular-season results."
     ) +
     theme(
         plot.title = element_text(face = "bold", size = 14),
@@ -333,6 +353,17 @@ cat("✓ Saved: 05_simulation_distributions.png\n")
 
 cat("\nCreating Plot 6: Comparing analytical and simulation results...\n")
 
+# FIX 5: Add 95% simulation intervals from mid_tier_counts
+summary_ci <- mid_tier_counts %>%
+    filter(round %in% c("Round of 32", "Sweet 16", "Elite 8", "Final Four")) %>%
+    group_by(round) %>%
+    summarise(
+        mean = mean(n_mid_tier, na.rm = TRUE),
+        lo = quantile(n_mid_tier, 0.025, na.rm = TRUE),
+        hi = quantile(n_mid_tier, 0.975, na.rm = TRUE),
+        .groups = "drop"
+    )
+
 # Prepare comparison data
 comparison_data <- tibble(
     round = c("Round of 32", "Sweet 16", "Elite 8", "Final Four"),
@@ -349,6 +380,7 @@ comparison_data <- tibble(
             select(round, simulated = mean_count, sim_sd = sd_count),
         by = "round"
     ) %>%
+    left_join(summary_ci, by = "round") %>%
     pivot_longer(
         cols = c(analytical, simulated),
         names_to = "method",
@@ -368,6 +400,13 @@ comparison_data <- tibble(
 p6 <- comparison_data %>%
     ggplot(aes(x = round, y = expected_count, fill = method)) +
     geom_col(position = position_dodge(width = 0.8), alpha = 0.8) +
+    geom_errorbar(
+        data = comparison_data %>% filter(method == "Monte Carlo Simulation"),
+        aes(ymin = lo, ymax = hi),
+        position = position_dodge(width = 0.8),
+        width = 0.25,
+        color = "gray30"
+    ) +
     geom_text(
         aes(label = sprintf("%.2f", expected_count)),
         position = position_dodge(width = 0.8),
@@ -381,15 +420,18 @@ p6 <- comparison_data %>%
         )
     ) +
     scale_y_continuous(
+        trans = "sqrt",
+        breaks = c(0, 1, 2, 3, 5, 7, 10),
         limits = c(0, NA),
         expand = expansion(mult = c(0, 0.15))
     ) +
     labs(
         title = "Expected 8-12 Seeds Advancing: Model vs Simulation",
-        subtitle = "Comparison of analytical predictions and Monte Carlo results",
+        subtitle = "Monte Carlo (5,000 sims), D1-only schedule, neutral sites",
         x = "Tournament Round",
         y = "Expected Number of 8-12 Seeds",
-        fill = "Method"
+        fill = "Method",
+        caption = "Note: √-scale y-axis to emphasize later-round variation. Seeds are model-assigned from regular-season results."
     ) +
     theme(
         plot.title = element_text(face = "bold", size = 14),
@@ -444,7 +486,8 @@ p7 <- conditional_long %>%
     labs(
         title = "Conditional Advancement Probabilities for 8–12 Seeds",
         subtitle = "Given a team reaches the Sweet 16",
-        x = "Seed", y = "Probability"
+        x = "Seed", y = "Probability",
+        caption = "Seeds are model-assigned from regular-season results for demonstration; not NCAA committee seeds."
     ) +
     theme(
         plot.title = element_text(face = "bold", size = 14),
@@ -464,34 +507,38 @@ cat("✓ Saved: 07_conditional_probabilities.png\n")
 
 cat("\nCreating Plot 8: Seed performance heatmap...\n")
 
-# Calculate percentage for each seed-round combination
+# FIX 1: Convert to per-team probability (divide by 4) to avoid >100% confusion
 heatmap_data <- seed_performance %>%
     mutate(
-        pct_reached = pct_of_sims / 100,
+        per_team_prob = pct_of_sims / 4, # Convert to per-team probability (0-100%)
         round = factor(round, levels = round_order)
     ) %>%
     filter(round != "Round of 64")
 
 p8 <- heatmap_data %>%
-    ggplot(aes(x = round, y = factor(winner_seed), fill = pct_reached)) +
+    ggplot(aes(x = round, y = factor(winner_seed), fill = per_team_prob)) +
     geom_tile(color = "white", linewidth = 1) +
     geom_text(
-        aes(label = sprintf("%.1f%%", pct_of_sims)),
-        color = "white",
+        aes(
+            label = sprintf("%.0f%%", per_team_prob),
+            color = per_team_prob > 35
+        ), # Dynamic text color with better threshold
         fontface = "bold",
         size = 4
     ) +
-    scale_fill_gradient(
-        low = oi_colors[2],
-        high = oi_colors[6],
-        labels = scales::percent_format(),
-        name = "% of\nSimulations"
+    scale_color_manual(values = c("TRUE" = "white", "FALSE" = "gray10"), guide = "none") +
+    scale_fill_gradientn(
+        colours = c("#08306B", "#3182BD", "#6BAED6", "#C6DBEF"), # Darker palette for contrast
+        values = scales::rescale(c(0, 0.25, 0.5, 1)),
+        limits = c(0, max(heatmap_data$per_team_prob)),
+        name = "% Sims\n(per team)"
     ) +
     labs(
         title = "Tournament Performance Heatmap: 8-12 Seeds",
-        subtitle = "Percentage of simulations where each seed reached each round",
+        subtitle = "Per-team probability of reaching each round",
         x = "Tournament Round",
-        y = "Seed"
+        y = "Seed",
+        caption = "Seeds are model-assigned from regular-season results for demonstration; not NCAA committee seeds."
     ) +
     theme(
         plot.title = element_text(face = "bold", size = 14),
@@ -526,31 +573,50 @@ dash_p1 <- p3 +
 dash_p2 <- comparison_data %>%
     filter(method == "Monte Carlo Simulation") %>%
     ggplot(aes(x = round, y = expected_count, fill = round)) +
-    geom_col(alpha = 0.8, show.legend = FALSE) +
+    geom_col(alpha = 0.9, show.legend = FALSE) +
+    geom_errorbar(
+        aes(ymin = lo, ymax = hi),
+        width = 0.25,
+        color = "gray30"
+    ) +
     geom_text(aes(label = sprintf("%.1f", expected_count)),
         vjust = -0.5, size = 3
     ) +
     scale_fill_manual(values = oi_colors[1:4]) +
-    scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.15))) +
+    scale_y_continuous(
+        trans = "sqrt",
+        breaks = c(0, 1, 2, 3, 5, 7),
+        limits = c(0, NA),
+        expand = expansion(mult = c(0, 0.15))
+    ) +
     labs(
         title = "Expected 8-12 Seeds by Round",
+        subtitle = "Monte Carlo (5,000 sims)",
         x = "Round", y = "Expected Count"
     ) +
     theme(
         text = element_text(size = 10),
         plot.title = element_text(size = 12, face = "bold"),
+        plot.subtitle = element_text(size = 9),
         axis.text.x = element_text(angle = 20, hjust = 1)
     )
 
 dash_p3 <- heatmap_data %>%
-    ggplot(aes(x = round, y = factor(winner_seed), fill = pct_reached)) +
+    ggplot(aes(x = round, y = factor(winner_seed), fill = per_team_prob)) +
     geom_tile(color = "white", linewidth = 0.5) +
-    geom_text(aes(label = sprintf("%.0f%%", pct_of_sims)),
-        color = "white", fontface = "bold", size = 3
+    geom_text(
+        aes(
+            label = sprintf("%.0f%%", per_team_prob),
+            color = per_team_prob > 35
+        ), # Dynamic text color with better threshold
+        fontface = "bold", size = 3
     ) +
-    scale_fill_gradient(
-        low = oi_colors[2], high = oi_colors[6],
-        labels = scales::percent_format(), name = "% Sims"
+    scale_color_manual(values = c("TRUE" = "white", "FALSE" = "gray10"), guide = "none") +
+    scale_fill_gradientn(
+        colours = c("#08306B", "#3182BD", "#6BAED6", "#C6DBEF"), # Darker palette for contrast
+        values = scales::rescale(c(0, 0.25, 0.5, 1)),
+        limits = c(0, max(heatmap_data$per_team_prob)),
+        name = "% Sims"
     ) +
     labs(title = "Performance by Seed", x = "Round", y = "Seed") +
     theme(
@@ -562,13 +628,19 @@ dash_p3 <- heatmap_data %>%
 
 dash_p4 <- team_abilities %>%
     filter(!is.na(seed)) %>%
-    mutate(is_mid = seed >= 8 & seed <= 12) %>%
-    ggplot(aes(x = seed_category, y = lambda, fill = is_mid)) +
-    geom_boxplot(alpha = 0.7) +
-    scale_fill_manual(
-        values = c("FALSE" = oi_colors[8], "TRUE" = oi_colors[6]),
-        guide = "none"
-    ) +
+    mutate(
+        lambda = pmax(pmin(lambda, 8), -8), # Clamp to [-8, 8]
+        se = pmin(se, 2), # Cap huge SEs
+        seed_category = factor(
+            seed_category,
+            levels = c("1-4 seeds", "5-7 seeds", "8-12 seeds", "13-16 seeds")
+        )
+    ) %>%
+    ggplot(aes(x = seed_category, y = lambda, fill = seed_category)) +
+    geom_boxplot(alpha = 0.7, outlier.alpha = 0.5) +
+    geom_jitter(width = 0.2, alpha = 0.3, size = 1) +
+    coord_cartesian(ylim = c(-2, 8)) +
+    scale_fill_manual(values = oi_colors[c(1, 2, 3, 6)], guide = "none") +
     labs(
         title = "Team Strength Distribution",
         x = "Seed Category", y = "λ"
@@ -583,10 +655,12 @@ dash_p4 <- team_abilities %>%
 dashboard <- (dash_p4 | dash_p1) / (dash_p2 | dash_p3) +
     plot_annotation(
         title = "Women's Basketball March Madness: 8-12 Seed Analysis",
-        subtitle = "Bradley-Terry Model and Monte Carlo Simulation Results",
+        subtitle = "D-I Schedule Only • Neutral Sites • 5,000 Sims",
+        caption = "Seeds are model-assigned from regular-season results; not official NCAA seeds.",
         theme = theme(
             plot.title = element_text(size = 16, face = "bold"),
-            plot.subtitle = element_text(size = 12)
+            plot.subtitle = element_text(size = 12),
+            plot.caption = element_text(size = 9, hjust = 0.5, margin = margin(t = 10))
         )
     )
 
@@ -604,9 +678,9 @@ cat("✓ Saved: 00_summary_dashboard.png\n")
 # 11. Generate Visualization Summary
 # =============================================================================
 
-cat("\n" %+% paste(rep("=", 70), collapse = "") %+% "\n")
+cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
 cat("VISUALIZATION SUMMARY\n")
-cat(paste(rep("=", 70), collapse = "") %+% "\n\n")
+cat(paste(rep("=", 70), collapse = ""), "\n\n", sep = "")
 
 cat("Generated the following visualizations:\n\n")
 cat("  00_summary_dashboard.png          - Combined 4-panel summary\n")
@@ -621,9 +695,9 @@ cat("  08_seed_performance_heatmap.png   - Seed-round heatmap\n")
 
 cat("\nAll figures saved to: results/figures/\n")
 
-cat("\n" %+% paste(rep("=", 70), collapse = "") %+% "\n")
+cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
 cat("✓ Visualization complete!\n")
-cat(paste(rep("=", 70), collapse = "") %+% "\n")
+cat(paste(rep("=", 70), collapse = ""), "\n", sep = "")
 
 # =============================================================================
 # NOTES:

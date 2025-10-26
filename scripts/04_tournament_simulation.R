@@ -313,9 +313,9 @@ print(mid_tier_summary)
 # 6. Answer Research Question 1: Expected Advancement
 # =============================================================================
 
-cat("\n" %+% paste(rep("=", 70), collapse = "") %+% "\n")
+cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
 cat("RESEARCH QUESTION 1: Expected 8-12 Seeds by Round\n")
-cat(paste(rep("=", 70), collapse = "") %+% "\n\n")
+cat(paste(rep("=", 70), collapse = ""), "\n\n", sep = "")
 
 # Round of 32 (after Round 1)
 r32_count <- mid_tier_counts %>%
@@ -381,9 +381,9 @@ cat(sprintf(
 # 7. Conditional Probabilities from Simulation
 # =============================================================================
 
-cat("\n" %+% paste(rep("=", 70), collapse = "") %+% "\n")
+cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
 cat("RESEARCH QUESTION 2: Conditional Probabilities (from simulation)\n")
-cat(paste(rep("=", 70), collapse = "") %+% "\n\n")
+cat(paste(rep("=", 70), collapse = ""), "\n\n", sep = "")
 
 # For each simulation, track if 8-12 seed reached each round
 # FIX: Create hit indicator BEFORE complete() to avoid 100% bug
@@ -490,9 +490,9 @@ write_csv(mid_tier_counts,
 # 10. Generate Simulation Summary
 # =============================================================================
 
-cat("\n" %+% paste(rep("=", 70), collapse = "") %+% "\n")
+cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
 cat("TOURNAMENT SIMULATION SUMMARY\n")
-cat(paste(rep("=", 70), collapse = "") %+% "\n\n")
+cat(paste(rep("=", 70), collapse = ""), "\n\n", sep = "")
 
 cat(sprintf("Number of simulations: %d\n", N_SIMS))
 cat(sprintf("Total games simulated: %d\n", nrow(all_simulations)))
@@ -505,9 +505,9 @@ cat(sprintf(
     (nrow(mid_tier_championships) / N_SIMS) * 100
 ))
 
-cat("\n" %+% paste(rep("=", 70), collapse = "") %+% "\n")
+cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
 cat("✓ Tournament simulation complete!\n")
-cat(paste(rep("=", 70), collapse = "") %+% "\n")
+cat(paste(rep("=", 70), collapse = ""), "\n", sep = "")
 
 # =============================================================================
 # NOTES:

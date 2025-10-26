@@ -15,9 +15,20 @@ P(i beats j) = 1 / (1 + exp(-(λᵢ - λⱼ)))
 Where λᵢ and λⱼ represent the latent strengths of teams i and j.
 
 ## Data Source
-- **Package**: `wncaahoopR` - Women's NCAA Basketball data package
-- **Repository**: https://github.com/snestler/wncaahoopR
-- **Scope**: Regular season and tournament games
+- **Package**: `wehoop` - Women's Basketball data package
+- **Repository**: https://github.com/sportsdataverse/wehoop
+- **Scope**: Regular season games (2023-2024 seasons)
+
+## Important Note: Synthetic Seeding
+
+⚠️ **Tournament Seeds**: This analysis uses a **synthetic bracket** seeded by regular-season win percentage, not actual NCAA committee seeds. 
+
+- Seeds are assigned purely from win% ranking (top 64 teams)
+- Seed-specific results (e.g., "8-seed vs 9-seed matchups") are **model-based what-ifs**, not historical reproductions
+- All conditional summaries should be interpreted as illustrative projections based on team strength estimates
+- To use real NCAA tournament seeds, replace `tournament_seeds.csv` with actual bracket data
+
+For research purposes, the **simulation-based conditional probabilities** (Script 04) are the primary results. The analytical estimates (Script 03) use heuristic opponent assumptions and serve as exploratory checks only.
 
 ## Project Structure
 ```

@@ -40,16 +40,29 @@ This report presents a comprehensive analysis of Women's NCAA Basketball March M
 1. **How many 8-12 seeds should we expect to advance past the second round?**
 2. **Given that an 8-12 seed advances past the second round, what is the probability they reach the finals or win the championship?**
 
+Additionally, we extend our analysis to calculate **individual team probabilities** for each specific 8-12 seed team, allowing us to identify which teams are most likely to make deep tournament runs and to contextualize the 2023-2024 historical result where zero 8-12 seeds reached the Sweet 16.
+
 ## Key Findings
 
 ```{r load-results, echo=FALSE}
 # Load key results
 key_results <- readRDS(here("results", "tables", "key_results.rds"))
+sweet16_probs <- read_csv(
+    here("results", "tables", "sweet16_mid_tier_probabilities.csv"),
+    show_col_types = FALSE
+)
 ```
+
+**Aggregate Analysis (all 8-12 seeds):**
 
 - **Expected 8-12 seeds in Sweet 16:** `r sprintf("%.2f", key_results$expected_in_sweet16)` teams
 - **Conditional probability of reaching Finals (given Sweet 16):** `r sprintf("%.1f%%", key_results$overall_conditional$prob_finals_given_s16 * 100)`
 - **Conditional probability of winning championship (given Sweet 16):** `r sprintf("%.1f%%", key_results$overall_conditional$prob_champion_given_s16 * 100)`
+
+**Individual Team Analysis:**
+
+- **Highest Sweet 16 probability:** `r sweet16_probs$winner_name[1]` (`r sweet16_probs$seed[1]`-seed) at `r sprintf("%.1f%%", sweet16_probs$percentage[1])`
+- **2023-2024 Context:** Zero 8-12 seeds reached Sweet 16 (17.9% probability - unusual but not impossible)
 
 ---
 
@@ -264,6 +277,101 @@ The Monte Carlo simulations (5,000 tournament replications) closely match our an
 knitr::include_graphics(here("results", "figures", "08_seed_performance_heatmap.png"))
 ```
 
+## 3.6 Individual Team Probabilities
+
+```{r load-individual-results, echo=FALSE}
+# Load individual team probability results
+team_probs <- readRDS(here("results", "tables", "individual_team_probabilities.rds"))
+mid_tier_advancement <- read_csv(
+    here("results", "tables", "mid_tier_team_advancement.csv"),
+    show_col_types = FALSE
+)
+```
+
+While the previous sections analyzed 8-12 seeds as a group, we can also calculate the probability that **specific teams** make it to each round. This is particularly relevant given that in 2023 and 2024, **no 8-12 seeds made it to the Sweet 16**.
+
+### Sweet 16 Probabilities by Team
+
+```{r sweet16-individual-plot, echo=FALSE, fig.cap="Individual team probabilities of reaching Sweet 16"}
+knitr::include_graphics(here("results", "figures", "09_sweet16_mid_tier_probabilities.png"))
+```
+
+```{r sweet16-team-table, echo=FALSE}
+sweet16_teams <- mid_tier_advancement %>%
+    arrange(desc(`Sweet 16`)) %>%
+    select(
+        Team = winner_name,
+        Seed = seed,
+        Region = region,
+        `P(Sweet 16)` = `Sweet 16`,
+        `P(Elite 8)` = `Elite 8`,
+        `P(Final Four)` = `Final Four`
+    ) %>%
+    mutate(across(where(is.numeric), ~ sprintf("%.1f%%", . * 100)))
+
+kable(sweet16_teams,
+    caption = "Individual 8-12 Seed Team Probabilities"
+) %>%
+    kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+### Key Findings
+
+- **Stanford Cardinal (11-seed)** has the highest Sweet 16 probability among 8-12 seeds at **62.5%**
+- **Indiana Hoosiers (8-seed)** follows with **48.5%** probability
+- There is substantial variation within the 8-12 seed range based on team strength and bracket positioning
+
+### Historical Context: 2023-2024 Results
+
+```{r historical-context-plot, echo=FALSE, fig.cap="Model predictions vs. observed 2023-2024 results"}
+knitr::include_graphics(here("results", "figures", "12_expected_vs_observed.png"))
+```
+
+Our model predicts approximately **1.7 8-12 seeds** should reach the Sweet 16 on average. However, in both 2023 and 2024, **zero 8-12 seeds** reached the Sweet 16.
+
+**Statistical Context:**
+
+- Expected number of 8-12 seeds in Sweet 16: **1.72**
+- Probability of zero 8-12 seeds reaching Sweet 16: **17.9%**
+
+This suggests the 2023-2024 results were somewhat unusual but **not impossible** - roughly a 1-in-6 chance. Such outcomes can occur due to:
+
+- Random variation (bracket "busts")
+- Particularly strong performances by top seeds
+- Injuries or other factors not captured in regular season data
+
+### Individual Team Deep Runs
+
+```{r round-progression-plot, echo=FALSE, fig.cap="Round-by-round progression for top 8-12 seeds"}
+knitr::include_graphics(here("results", "figures", "10_round_by_round_progression.png"))
+```
+
+The chart above shows how the top five 8-12 seeds by Sweet 16 probability progress through each tournament round. Note the steep decline after the Sweet 16, as these teams face increasingly difficult opponents.
+
+### Spotlight: Stanford Cardinal
+
+```{r stanford-spotlight, echo=FALSE, fig.cap="Stanford Cardinal tournament probabilities"}
+knitr::include_graphics(here("results", "figures", "13_stanford_spotlight.png"))
+```
+
+As an example of individual team analysis, Stanford Cardinal (11-seed, Spokane Region) shows:
+
+- **81.0%** chance of winning Round of 64
+- **70.8%** chance of reaching Round of 32
+- **62.5%** chance of reaching Sweet 16
+- **15.2%** chance of reaching Elite 8
+- **4.6%** chance of reaching Final Four
+
+Despite being an 11-seed, Stanford's strong regular season performance (λ = 5.37) gives them elite-8-seed-level probabilities in the early rounds.
+
+### Comprehensive Probability Heatmap
+
+```{r probability-heatmap, echo=FALSE, fig.cap="Heatmap of all 8-12 seed probabilities by round"}
+knitr::include_graphics(here("results", "figures", "11_probability_heatmap.png"))
+```
+
+This heatmap visualizes all 8-12 seed teams' probabilities across tournament rounds, showing both seed-level patterns and individual team variation.
+
 ---
 
 # 4. Discussion
@@ -274,7 +382,11 @@ knitr::include_graphics(here("results", "figures", "08_seed_performance_heatmap.
 
 2. **Seed matters even within 8-12 range:** 8 and 9 seeds have noticeably better chances than 11 and 12 seeds.
 
-3. **Model validation:** Strong agreement between analytical predictions and Monte Carlo simulations suggests robust model estimates.
+3. **Individual team variation is substantial:** Even within the same seed number, team strength (λ) creates significant differences in advancement probability. Stanford (11-seed) has a 62.5% Sweet 16 probability, much higher than typical 11-seeds.
+
+4. **Historical context matters:** The 2023-2024 result of zero 8-12 seeds in the Sweet 16 has only a 17.9% probability under our model - unusual but not unprecedented.
+
+5. **Model validation:** Strong agreement between analytical predictions and Monte Carlo simulations suggests robust model estimates.
 
 ## 4.2 Limitations
 
@@ -285,9 +397,10 @@ knitr::include_graphics(here("results", "figures", "08_seed_performance_heatmap.
 
 ## 4.3 Practical Applications
 
-- **Bracket Strategy:** Understanding base rates helps avoid over/under-predicting upsets
-- **Team Evaluation:** Teams significantly outperforming their seed expectations may be under-seeded
+- **Bracket Strategy:** Understanding base rates helps avoid over/under-predicting upsets. Individual team probabilities can identify specific "Cinderella" candidates like Stanford.
+- **Team Evaluation:** Teams significantly outperforming their seed expectations may be under-seeded. Stanford's 62.5% Sweet 16 probability despite being an 11-seed suggests they may be stronger than their seeding indicates.
 - **Tournament Format Analysis:** Quantifies competitive balance in the tournament structure
+- **What-if Analysis:** Can model "what if a specific 8-12 seed had made the Sweet 16" scenarios to understand how unusual the 2023-2024 outcomes were
 
 ---
 
@@ -295,10 +408,16 @@ knitr::include_graphics(here("results", "figures", "08_seed_performance_heatmap.
 
 Using Bradley-Terry models combined with Monte Carlo simulation, we provide rigorous answers to our research questions:
 
-1. **Approximately 2-3 of the 8-12 seeds should advance to the Sweet 16** in a typical tournament
+1. **Approximately 1.7 of the 8-12 seeds should advance to the Sweet 16** in a typical tournament (range: 0-4)
 2. **An 8-12 seed that reaches the Sweet 16 has roughly a 10-20% chance of reaching the Final Four**, but less than 5% chance of winning the championship
 
-These findings provide a quantitative framework for understanding mid-tier seed performance in Women's March Madness and can inform both bracket predictions and broader understanding of tournament dynamics.
+Beyond these aggregate findings, our **individual team probability analysis** reveals:
+
+- Substantial variation exists within seed categories based on regular season performance
+- Specific teams like **Stanford Cardinal (11-seed, 62.5% Sweet 16 probability)** and **Indiana Hoosiers (8-seed, 48.5%)** are strong candidates for deep runs
+- The 2023-2024 observation of zero 8-12 seeds in the Sweet 16, while unusual, occurs naturally about **1 in 6 tournaments** under our model
+
+These findings provide a quantitative framework for understanding mid-tier seed performance in Women's March Madness. The methodology allows analysis at both the **aggregate level** (how many 8-12 seeds overall) and **individual team level** (which specific teams are most likely), making it valuable for bracket predictions, team evaluation, and understanding tournament dynamics.
 
 ---
 
@@ -326,7 +445,14 @@ The Bradley-Terry model was fit using maximum likelihood estimation via the `Bra
 ## Code Availability
 
 All analysis code is available in the project repository:
-`/scripts/01_data_collection.R` through `/scripts/05_visualization.R`
+
+- `/scripts/01_data_collection_UPDATED.R` - Data collection and cleaning
+- `/scripts/02_bradley_terry_model.R` - Model fitting and team strength estimation
+- `/scripts/03_seed_analysis.R` - Aggregate seed-level analysis
+- `/scripts/04_tournament_simulation.R` - Monte Carlo tournament simulations (5,000 replications)
+- `/scripts/05_visualization.R` - Aggregate visualizations
+- `/scripts/06_individual_team_probabilities.R` - Individual team probability calculations
+- `/scripts/07_individual_team_viz.R` - Individual team visualizations
 
 ---
 

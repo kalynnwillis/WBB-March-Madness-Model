@@ -74,207 +74,144 @@ ggsave(
     dpi = 300
 )
 
-# Round-by-Round Progression for Top Mid-Tier Teams
+# REMOVED: Plot 10 - Round-by-Round Progression (just shows declining probabilities, not insightful)
+
+# REMOVED: Plot 11 - Probability Heatmap (redundant with plot 08)
+
+# REMOVED: Plot 12 - Expected vs Observed (only one data point, not useful with such limited historical data)
+
+# REMOVED: Plot 13 - Stanford Spotlight (arbitrary team selection, not generalizable)
+
+# NEW: Upset Potential Analysis - Show strength variability within seed groups
 
 round_order <- c(
     "Round of 64", "Round of 32", "Sweet 16",
     "Elite 8", "Final Four", "Championship"
 )
 
-# Get top 5 mid-tier teams by Sweet 16 probability
-top_teams <- sweet16_data %>%
-    head(5) %>%
-    pull(winner_name)
+# Load team abilities to show within-seed variance (if not already loaded)
+if (!exists("team_abilities")) {
+    team_abilities <- readRDS(here("data", "processed", "team_abilities_with_seeds.rds"))
+}
 
-# Prepare data for progression plot
-progression_data <- team_probs %>%
-    filter(winner_name %in% top_teams) %>%
-    mutate(
-        round = factor(round, levels = round_order),
-        winner_name = factor(winner_name, levels = top_teams)
-    )
-
-p2 <- ggplot(progression_data, aes(x = round, y = percentage, color = winner_name, group = winner_name)) +
-    geom_line(linewidth = 1.2) +
-    geom_point(size = 3) +
-    geom_text(
-        data = progression_data %>% filter(round == "Sweet 16"),
-        aes(label = sprintf("%.1f%%", percentage)),
-        vjust = -0.7, hjust = 0.5, size = 3, fontface = "bold", show.legend = FALSE
-    ) +
-    scale_color_manual(
-        values = oi_colors[1:5],
-        name = "Team"
-    ) +
-    labs(
-        title = "Tournament Progression: Top 8-12 Seeds by Sweet 16 Probability",
-        subtitle = "Probability of reaching each round (5,000 simulations)",
-        x = "Tournament Round",
-        y = "Probability (%)"
-    ) +
-    theme(
-        plot.title = element_text(face = "bold", size = 14),
-        plot.subtitle = element_text(size = 11),
-        axis.title = element_text(face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = "bottom"
-    ) +
-    guides(color = guide_legend(nrow = 2))
-
-ggsave(
-    filename = here("results", "figures", "10_round_by_round_progression.png"),
-    plot = p2,
-    width = 11,
-    height = 7,
-    dpi = 300
-)
-
-# Heatmap of All Round Probabilities
-
-heatmap_data <- mid_tier_advancement %>%
-    pivot_longer(
-        cols = c("Round of 64", "Round of 32", "Sweet 16", "Elite 8", "Final Four"),
-        names_to = "round",
-        values_to = "probability"
-    ) %>%
-    mutate(
-        round = factor(round, levels = round_order[1:5]),
-        team_label = paste0(winner_name, " (", seed, ")"),
-        team_label = fct_reorder(team_label, seed)
-    )
-
-p3 <- ggplot(heatmap_data, aes(x = round, y = team_label, fill = probability * 100)) +
-    geom_tile(color = "white", linewidth = 1) +
-    geom_text(aes(label = sprintf("%.1f%%", probability * 100)),
-        size = 3.5, fontface = "bold", color = "black"
-    ) +
-    scale_fill_gradient2(
-        low = "#f7f7f7",
-        mid = "#fdae61",
-        high = "#d7191c",
-        midpoint = 40,
-        name = "Probability (%)",
-        limits = c(0, 100)
-    ) +
-    labs(
-        title = "8-12 Seed Tournament Advancement Probabilities",
-        subtitle = "Probability of reaching each round (5,000 simulations)",
-        x = "Tournament Round",
-        y = NULL
-    ) +
-    theme(
-        plot.title = element_text(face = "bold", size = 14),
-        plot.subtitle = element_text(size = 11),
-        axis.title = element_text(face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        panel.grid = element_blank()
-    )
-
-ggsave(
-    filename = here("results", "figures", "11_probability_heatmap.png"),
-    plot = p3,
-    width = 10,
-    height = 6,
-    dpi = 300
-)
-
-# Comparison with Historical Context
-
-expected_counts <- team_probs %>%
-    filter(is_mid_tier_seed == TRUE) %>%
-    group_by(round) %>%
+# Create upset potential visualization
+upset_data <- team_abilities %>%
+    filter(seed %in% 8:12) %>%
+    group_by(seed) %>%
     summarise(
-        expected_count = sum(probability),
+        mean_lambda = mean(lambda, na.rm = TRUE),
+        sd_lambda = sd(lambda, na.rm = TRUE),
+        min_lambda = min(lambda, na.rm = TRUE),
+        max_lambda = max(lambda, na.rm = TRUE),
+        n_teams = n(),
         .groups = "drop"
     ) %>%
     mutate(
-        round = factor(round, levels = round_order),
-        observed_2023_2024 = case_when(
-            round == "Round of 64" ~ 20, # 20 teams seeded 8-12
-            round == "Round of 32" ~ NA_real_,
-            round == "Sweet 16" ~ 0, # Historical observation
-            TRUE ~ NA_real_
-        )
-    ) %>%
-    filter(round %in% c("Round of 32", "Sweet 16", "Elite 8", "Final Four"))
-
-p4 <- ggplot(expected_counts, aes(x = round)) +
-    geom_col(aes(y = expected_count, fill = "Model Prediction"),
-        alpha = 0.7, width = 0.6
-    ) +
-    geom_point(aes(y = observed_2023_2024, color = "2023-2024 Actual"),
-        size = 4, shape = 18
-    ) +
-    geom_text(aes(y = expected_count, label = sprintf("%.2f", expected_count)),
-        vjust = -0.5, size = 3.5, fontface = "bold"
-    ) +
-    geom_hline(yintercept = 0, linewidth = 0.5, color = "gray30") +
-    scale_fill_manual(
-        values = c("Model Prediction" = oi_colors[3]),
-        name = ""
-    ) +
-    scale_color_manual(
-        values = c("2023-2024 Actual" = oi_colors[6]),
-        name = ""
-    ) +
-    labs(
-        title = "Expected vs. Observed 8-12 Seeds by Round",
-        subtitle = "Model predictions compared to 2023-2024 tournament results",
-        x = "Tournament Round",
-        y = "Number of 8-12 Seeds",
-        caption = "Diamond marker shows actual count from 2023-2024 tournaments"
-    ) +
-    theme(
-        plot.title = element_text(face = "bold", size = 14),
-        plot.subtitle = element_text(size = 11),
-        axis.title = element_text(face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = "top"
-    ) +
-    scale_y_continuous(breaks = seq(0, 12, 2), limits = c(0, 12))
-
-ggsave(
-    filename = here("results", "figures", "12_expected_vs_observed.png"),
-    plot = p4,
-    width = 10,
-    height = 6,
-    dpi = 300
-)
-
-
-# Individual team spotlight
-
-stanford_data <- team_probs %>%
-    filter(winner_name == "Stanford Cardinal") %>%
-    mutate(
-        round = factor(round, levels = round_order),
-        round_num = as.numeric(round)
+        cv = sd_lambda / abs(mean_lambda), # Coefficient of variation
+        range_lambda = max_lambda - min_lambda
     )
 
-p5 <- ggplot(stanford_data, aes(x = round, y = percentage)) +
-    geom_col(fill = oi_colors[5], alpha = 0.8, width = 0.7) +
-    geom_text(aes(label = sprintf("%.1f%%\n(%d/5000)", percentage, times_reached)),
-        vjust = -0.5, size = 3.5, fontface = "bold"
+p10 <- upset_data %>%
+    ggplot(aes(x = factor(seed))) +
+    # Show range with error bars
+    geom_errorbar(
+        aes(ymin = min_lambda, ymax = max_lambda),
+        width = 0.4, linewidth = 1.2, color = oi_colors[6], alpha = 0.7
     ) +
+    # Show mean
+    geom_point(aes(y = mean_lambda), size = 5, color = oi_colors[3], alpha = 0.9) +
+    # Show ±1 SD
+    geom_errorbar(
+        aes(ymin = mean_lambda - sd_lambda, ymax = mean_lambda + sd_lambda),
+        width = 0.2, linewidth = 1.5, color = oi_colors[5], alpha = 0.8
+    ) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "gray40", alpha = 0.7) +
     labs(
-        title = "Stanford Cardinal (11-seed) Tournament Probabilities",
-        subtitle = "Highest Sweet 16 probability among 8-12 seeds",
-        x = "Tournament Round",
-        y = "Probability (%)",
-        caption = "Stanford has a 62.5% chance of reaching the Sweet 16 based on simulations"
+        title = "Team Strength Variability Within 8-12 Seeds",
+        subtitle = "Greater variability = higher upset potential",
+        x = "Seed",
+        y = "Team Strength (λ, z-score)",
+        caption = "Large dot = mean strength • Thick bars = ±1 SD • Thin bars = full range (min-max)\nHigh variability within a seed indicates some teams are much stronger/weaker than others."
     ) +
     theme(
         plot.title = element_text(face = "bold", size = 14),
         plot.subtitle = element_text(size = 11),
         axis.title = element_text(face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1)
+        plot.caption = element_text(size = 9, hjust = 0, lineheight = 1.3)
     ) +
-    scale_y_continuous(limits = c(0, 100), breaks = seq(0, 100, 20))
+    scale_y_continuous(breaks = seq(-1.5, 1.5, 0.5))
 
 ggsave(
-    filename = here("results", "figures", "13_stanford_spotlight.png"),
-    plot = p5,
+    filename = here("results", "figures", "10_upset_potential.png"),
+    plot = p10,
     width = 10,
-    height = 6,
-    dpi = 300
+    height = 7,
+    dpi = 400
+)
+
+# NEW: Key Matchup Analysis - Win probabilities for critical first round matchups
+
+# Load matchup probabilities
+matchup_probs <- readRDS(here("data", "processed", "matchup_probabilities.rds"))
+
+# Focus on key matchups involving 8-12 seeds
+key_matchups <- matchup_probs %>%
+    filter(higher_seed %in% 8:12 | lower_seed %in% 8:12) %>%
+    mutate(
+        mid_tier_seed = case_when(
+            higher_seed %in% 8:12 ~ higher_seed,
+            lower_seed %in% 8:12 ~ lower_seed,
+            TRUE ~ NA_real_
+        ),
+        mid_tier_prob = case_when(
+            higher_seed %in% 8:12 ~ avg_prob_higher_wins,
+            lower_seed %in% 8:12 ~ avg_prob_lower_wins,
+            TRUE ~ NA_real_
+        ),
+        is_favorable = mid_tier_prob > 0.5
+    ) %>%
+    filter(!is.na(mid_tier_seed))
+
+p11 <- key_matchups %>%
+    mutate(matchup = fct_reorder(matchup, mid_tier_prob)) %>%
+    ggplot(aes(x = mid_tier_prob, y = matchup, fill = is_favorable)) +
+    geom_col(alpha = 0.8) +
+    geom_vline(xintercept = 0.5, linetype = "dashed", color = "gray30", linewidth = 0.8) +
+    geom_text(
+        aes(label = scales::percent(mid_tier_prob, accuracy = 0.1)),
+        hjust = ifelse(key_matchups$mid_tier_prob > 0.5, -0.1, 1.1),
+        size = 3.5,
+        fontface = "bold"
+    ) +
+    scale_fill_manual(
+        values = c("TRUE" = oi_colors[3], "FALSE" = oi_colors[6]),
+        labels = c("Underdog", "Favorite"),
+        name = "8-12 Seed is:"
+    ) +
+    scale_x_continuous(
+        labels = scales::percent_format(),
+        limits = c(0, 1),
+        expand = expansion(mult = c(0.02, 0.15))
+    ) +
+    labs(
+        title = "Win Probability for 8-12 Seeds in First Round Matchups",
+        subtitle = "Neutral-court probabilities based on Bradley-Terry model",
+        x = "Win Probability (for 8-12 seed)",
+        y = "Matchup",
+        caption = "Shows typical NCAA tournament first round matchups. Dashed line = 50-50 matchup."
+    ) +
+    theme(
+        plot.title = element_text(face = "bold", size = 14),
+        plot.subtitle = element_text(size = 11),
+        axis.title = element_text(face = "bold"),
+        plot.caption = element_text(size = 9, hjust = 0, lineheight = 1.2),
+        legend.position = "top"
+    )
+
+ggsave(
+    filename = here("results", "figures", "11_key_matchups.png"),
+    plot = p11,
+    width = 10,
+    height = 8,
+    dpi = 400
 )

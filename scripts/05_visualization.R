@@ -136,61 +136,7 @@ ggsave(
     dpi = 400
 )
 
-# All Team Strengths with Confidence Intervals
-
-se_threshold <- quantile(team_abilities$se[!is.na(team_abilities$seed)], 0.95, na.rm = TRUE)
-
-tournament_teams <- team_abilities %>%
-    filter(!is.na(seed)) %>%
-    filter(se <= se_threshold) %>% # Drop worst 5% SEs
-    mutate(
-        lambda = pmax(pmin(lambda, 6), -6), # Tighter clamp for viz
-        se = pmin(se, 2)
-    ) %>%
-    arrange(lambda) %>%
-    mutate(
-        rank = row_number(),
-        is_mid_tier = seed >= 8 & seed <= 12
-    )
-
-p2 <- tournament_teams %>%
-    ggplot(aes(x = rank, y = lambda, color = is_mid_tier)) +
-    geom_vline(
-        xintercept = c(16, 32, 48),
-        linetype = "dotted", color = "gray70", linewidth = 0.5
-    ) +
-    geom_errorbar(
-        aes(ymin = lambda - 2 * se, ymax = lambda + 2 * se),
-        alpha = 0.5,
-        width = 0
-    ) +
-    geom_point(size = 2.5, alpha = 0.8) +
-    scale_color_manual(
-        values = c("FALSE" = oi_colors[8], "TRUE" = oi_colors[6]),
-        labels = c("Other seeds", "8-12 seeds")
-    ) +
-    labs(
-        title = "Tournament Team Strengths with 95% Confidence Intervals",
-        subtitle = "Teams ranked by estimated strength (λ)",
-        x = "Rank (by team strength)",
-        y = "Estimated Team Strength (λ)",
-        color = "Seed Group",
-        caption = "Error bars: ±2 SE; top 5% SE excluded; λ capped to ±6 for viz. Seeds are model-assigned from regular-season results."
-    ) +
-    theme(
-        plot.title = element_text(face = "bold", size = 14),
-        plot.subtitle = element_text(size = 11),
-        axis.title = element_text(face = "bold"),
-        legend.position = "bottom"
-    )
-
-ggsave(
-    filename = here("results", "figures", "02_all_team_strengths.png"),
-    plot = p2,
-    width = 12,
-    height = 7,
-    dpi = 400
-)
+# REMOVED: Plot 02 - All Team Strengths (redundant with seed distribution)
 
 # First Round Win Probabilities by Seed (with simulation CIs)
 
@@ -266,80 +212,7 @@ p3 <- first_round_ci %>%
 ggsave(here("results", "figures", "03_first_round_probabilities.png"), p3, width = 10, height = 6, dpi = 400)
 
 
-# Expected Advancement by Round
-
-advancement_by_seed <- deeper_summary %>%
-    left_join(
-        first_round_summary %>% select(seed, expected_wins),
-        by = "seed"
-    ) %>%
-    left_join(
-        second_round_summary %>% select(seed, expected_in_sweet16),
-        by = "seed"
-    ) %>%
-    select(
-        seed,
-        r32 = expected_wins,
-        sweet16 = expected_in_sweet16,
-        elite8 = expected_elite8,
-        final4 = expected_final4
-    )
-
-advancement_data <- advancement_by_seed %>%
-    pivot_longer(
-        cols = c(r32, sweet16, elite8, final4),
-        names_to = "round",
-        values_to = "expected"
-    ) %>%
-    mutate(expected = if_else(is.na(expected), 0, expected)) %>%
-    drop_na(seed, round) %>%
-    mutate(
-        round = case_when(
-            round == "r32" ~ "Round of 32",
-            round == "sweet16" ~ "Sweet 16",
-            round == "elite8" ~ "Elite 8",
-            round == "final4" ~ "Final Four"
-        ),
-        round = factor(round, levels = c(
-            "Round of 32", "Sweet 16",
-            "Elite 8", "Final Four"
-        ))
-    )
-
-p4 <- advancement_data %>%
-    ggplot(aes(x = round, y = expected, color = factor(seed), group = seed)) +
-    geom_line(linewidth = 1.2, alpha = 0.8) +
-    geom_point(size = 3) +
-    scale_color_manual(
-        values = oi_colors[1:5],
-        name = "Seed"
-    ) +
-    scale_y_continuous(
-        limits = c(0, NA),
-        expand = expansion(mult = c(0, 0.1))
-    ) +
-    labs(
-        title = "Expected Number of Teams Advancing by Round",
-        subtitle = "8-12 seeds progression through tournament (analytical model)",
-        x = "Tournament Round",
-        y = "Expected Number of Teams",
-        caption = "Based on Bradley-Terry model probabilities. Seeds are model-assigned from regular-season results."
-    ) +
-    theme(
-        plot.title = element_text(face = "bold", size = 14),
-        plot.subtitle = element_text(size = 11),
-        axis.title = element_text(face = "bold"),
-        axis.text.x = element_text(angle = 15, hjust = 1),
-        legend.position = "right"
-    )
-
-ggsave(
-    filename = here("results", "figures", "04_expected_advancement.png"),
-    plot = p4,
-    width = 12,
-    height = 7,
-    dpi = 400
-)
+# REMOVED: Plot 04 - Expected Advancement (covered better by heatmap and simulation plot)
 
 # Simulation Results Distribution
 
@@ -518,7 +391,7 @@ p7 <- conditional_long %>%
 ggsave(here("results", "figures", "07_conditional_probabilities.png"), p7, width = 12, height = 8, dpi = 300)
 
 
-# Seed Performance Heatmap
+# Enhanced Seed Performance Heatmap with Insights
 
 # Load team-level probabilities for proper per-team heatmap
 team_probs <- readRDS(here("results", "tables", "individual_team_probabilities.rds"))
@@ -528,7 +401,12 @@ heatmap_data <- team_probs %>%
     filter(seed %in% 8:12, round %in% round_order) %>%
     mutate(prob = as_prob01(percentage)) %>%
     group_by(seed, round) %>%
-    summarise(per_team_prob = mean(prob, na.rm = TRUE), .groups = "drop") %>%
+    summarise(
+        per_team_prob = mean(prob, na.rm = TRUE),
+        min_prob = min(prob, na.rm = TRUE),
+        max_prob = max(prob, na.rm = TRUE),
+        .groups = "drop"
+    ) %>%
     mutate(round = factor(round, levels = round_order)) %>%
     filter(round != "Round of 64")
 
@@ -573,41 +451,22 @@ ggsave(
     dpi = 400
 )
 
-dash_p1 <- p3 +
+# Create improved dashboard with most insightful plots
+
+dash_p1 <- p1b +
     theme(
-        text = element_text(size = 10),
-        plot.title = element_text(size = 12)
+        text = element_text(size = 9),
+        plot.title = element_text(size = 11, face = "bold"),
+        plot.subtitle = element_text(size = 9),
+        plot.caption = element_text(size = 7)
     )
 
-dash_p2 <- comparison_data %>%
-    filter(method == "Monte Carlo Simulation") %>%
-    ggplot(aes(x = round, y = expected_count, fill = round)) +
-    geom_col(alpha = 0.9, show.legend = FALSE) +
-    geom_errorbar(
-        aes(ymin = lo, ymax = hi),
-        width = 0.25,
-        color = "gray30"
-    ) +
-    geom_text(aes(label = sprintf("%.1f", expected_count)),
-        vjust = -0.5, size = 3
-    ) +
-    scale_fill_manual(values = oi_colors[1:4]) +
-    scale_y_continuous(
-        trans = "sqrt",
-        breaks = c(0, 1, 2, 3, 5, 7),
-        limits = c(0, NA),
-        expand = expansion(mult = c(0, 0.15))
-    ) +
-    labs(
-        title = "Expected 8-12 Seeds by Round",
-        subtitle = "Monte Carlo (5,000 sims)",
-        x = "Round", y = "Expected Count"
-    ) +
+dash_p2 <- p3 +
     theme(
-        text = element_text(size = 10),
-        plot.title = element_text(size = 12, face = "bold"),
+        text = element_text(size = 9),
+        plot.title = element_text(size = 11, face = "bold"),
         plot.subtitle = element_text(size = 9),
-        axis.text.x = element_text(angle = 20, hjust = 1)
+        plot.caption = element_text(size = 7)
     )
 
 dash_p3 <- heatmap_data %>%
@@ -618,7 +477,7 @@ dash_p3 <- heatmap_data %>%
             label = scales::percent(per_team_prob, accuracy = 1),
             color = per_team_prob > 0.35
         ),
-        fontface = "bold", size = 3
+        fontface = "bold", size = 2.8
     ) +
     scale_color_manual(values = c("TRUE" = "white", "FALSE" = "gray10"), guide = "none") +
     scale_fill_gradientn(
@@ -627,42 +486,51 @@ dash_p3 <- heatmap_data %>%
         limits = c(0, max(heatmap_data$per_team_prob)),
         name = "Prob"
     ) +
-    labs(title = "Performance by Seed", x = "Round", y = "Seed") +
+    labs(title = "Per-Team Advancement Probability", x = "Round", y = "Seed") +
     theme(
-        text = element_text(size = 10),
-        plot.title = element_text(size = 12, face = "bold"),
+        text = element_text(size = 9),
+        plot.title = element_text(size = 11, face = "bold"),
         axis.text.x = element_text(angle = 20, hjust = 1),
-        legend.key.size = unit(0.4, "cm")
+        legend.key.size = unit(0.35, "cm"),
+        legend.text = element_text(size = 7)
     )
 
-dash_p4 <- team_abilities %>%
-    filter(!is.na(seed)) %>%
-    mutate(
-        seed_category = factor(
-            seed_category,
-            levels = c("1-4 seeds", "5-7 seeds", "8-12 seeds", "13-16 seeds")
-        )
-    ) %>%
-    ggplot(aes(x = seed_category, y = lambda, fill = seed_category)) +
-    geom_boxplot(width = 0.65, outlier.alpha = 0.35) +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "gray60", alpha = 0.7) +
-    coord_cartesian(ylim = c(-1.5, 1.5)) +
-    scale_fill_manual(values = oi_colors[c(1, 2, 3, 6)], guide = "none") +
+dash_p4 <- comparison_data %>%
+    filter(method == "Monte Carlo Simulation") %>%
+    ggplot(aes(x = round, y = expected_count, fill = round)) +
+    geom_col(alpha = 0.9, show.legend = FALSE) +
+    geom_errorbar(
+        aes(ymin = lo, ymax = hi),
+        width = 0.25,
+        color = "gray30"
+    ) +
+    geom_text(aes(label = sprintf("%.1f", expected_count)),
+        vjust = -0.5, size = 2.8
+    ) +
+    scale_fill_manual(values = oi_colors[1:4]) +
+    scale_y_continuous(
+        trans = "sqrt",
+        breaks = c(0, 1, 2, 3, 5, 7),
+        limits = c(0, NA),
+        expand = expansion(mult = c(0, 0.15))
+    ) +
     labs(
-        title = "Team Strength Distribution",
-        x = "Seed Category", y = "λ (z-score)"
+        title = "Expected Count by Round",
+        subtitle = "Simulation results (5,000)",
+        x = "Round", y = "Expected # of 8-12 Seeds"
     ) +
     theme(
-        text = element_text(size = 10),
-        plot.title = element_text(size = 12, face = "bold"),
+        text = element_text(size = 9),
+        plot.title = element_text(size = 11, face = "bold"),
+        plot.subtitle = element_text(size = 9),
         axis.text.x = element_text(angle = 20, hjust = 1)
     )
 
-dashboard <- (dash_p4 | dash_p1) / (dash_p2 | dash_p3) +
+dashboard <- (dash_p1 | dash_p2) / (dash_p4 | dash_p3) +
     plot_annotation(
         title = "Women's Basketball March Madness: 8-12 Seed Analysis",
-        subtitle = "D-I Schedule Only • Neutral Sites • 5,000 Sims",
-        caption = "Seeds are model-assigned from regular-season results; not official NCAA seeds.",
+        subtitle = "D-I Schedule Only • Neutral Sites • 5,000 Simulations",
+        caption = "Seeds are model-assigned (λ-based) from regular-season results; not official NCAA committee seeds.",
         theme = theme(
             plot.title = element_text(size = 16, face = "bold"),
             plot.subtitle = element_text(size = 12),

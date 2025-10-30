@@ -3,50 +3,31 @@
 # Purpose: Analyze advancement probabilities for mid-tier seeds
 # =============================================================================
 
-# Load required libraries
 library(tidyverse)
 library(here)
 
-# Load helper functions
 source(here("scripts", "00_helper_functions.R"))
 
 dir_create_safe("results", "tables")
 
-# =============================================================================
-# 1. Load Model Results
-# =============================================================================
-
-cat("Loading model results and data...\n")
+# Load Model Results
 
 bt_model <- readRDS(here("data", "processed", "bt_model.rds"))
 team_abilities <- readRDS(here("data", "processed", "team_abilities_with_seeds.rds"))
 win_probs <- readRDS(here("data", "processed", "win_probability_matrix.rds"))
 tournament_seeds <- readRDS(here("data", "processed", "tournament_seeds.rds"))
 
-cat("✓ Data loaded successfully\n")
 
-# =============================================================================
-# 2. Identify 8-12 Seed Teams and Their Opponents
-# =============================================================================
+# Identify 8-12 Seed Teams and Their Opponents
 
-cat("\nAnalyzing 8-12 seed teams...\n")
-
-# Filter for 8-12 seeds
 mid_tier_teams <- team_abilities %>%
     filter(seed >= 8 & seed <= 12) %>%
     arrange(seed, desc(lambda))
 
-cat(sprintf("Found %d teams with 8-12 seeds\n", nrow(mid_tier_teams)))
-
-# Display all 8-12 seed teams
-cat("\n8-12 Seed Teams:\n")
 print(mid_tier_teams %>% select(team, seed, region, lambda, se))
 
-# =============================================================================
-# 3. Calculate First Round Win Probabilities (Round of 64 -> Round of 32)
-# =============================================================================
+# Calculate First Round Win Probabilities
 
-cat("\nCalculating first round win probabilities...\n")
 
 # Define standard NCAA tournament first-round matchups
 # 8 plays 9, 9 plays 8, 10 plays 7, 11 plays 6, 12 plays 5
@@ -77,21 +58,18 @@ first_round_analysis <- mid_tier_teams %>%
     ) %>%
     ungroup()
 
-# Summary by seed - FIX 2: Use 10-90th percentile instead of min-max
 first_round_summary <- first_round_analysis %>%
     group_by(seed) %>%
     summarise(
         n_teams = n(),
         avg_prob_win = mean(prob_win_round1, na.rm = TRUE),
-        min_prob_win = min(prob_win_round1, na.rm = TRUE), # Keep for compatibility
-        max_prob_win = max(prob_win_round1, na.rm = TRUE), # Keep for compatibility
+        min_prob_win = min(prob_win_round1, na.rm = TRUE),
+        max_prob_win = max(prob_win_round1, na.rm = TRUE),
         p10_prob_win = quantile(prob_win_round1, 0.10, na.rm = TRUE),
         p90_prob_win = quantile(prob_win_round1, 0.90, na.rm = TRUE),
         expected_wins = sum(prob_win_round1, na.rm = TRUE)
     )
 
-cat("\nFirst Round Win Probabilities by Seed:\n")
-print(first_round_summary)
 
 # Expected number of 8-12 seeds advancing to Round of 32
 expected_advance_r32 <- sum(first_round_summary$expected_wins)
@@ -100,11 +78,7 @@ cat(sprintf(
     expected_advance_r32
 ))
 
-# =============================================================================
-# 4. Calculate Second Round Win Probabilities (Round of 32 -> Sweet 16)
-# =============================================================================
-
-cat("\nCalculating second round win probabilities...\n")
+# Calculate Second Round Win Probabilities (Round of 32 -> Sweet 16)
 
 # Second round opponents are typically 1-4 seeds
 # 8/9 winner plays 1, 5/12 winner plays 4, etc.
@@ -145,20 +119,13 @@ second_round_summary <- second_round_analysis %>%
         expected_in_sweet16 = sum(prob_reach_sweet16, na.rm = TRUE)
     )
 
-cat("\nSecond Round Analysis by Seed:\n")
-print(second_round_summary)
 
 # Expected number of 8-12 seeds in Sweet 16
 expected_in_sweet16 <- sum(second_round_summary$expected_in_sweet16)
 cat(sprintf("\nExpected # of 8-12 seeds in Sweet 16: %.2f\n", expected_in_sweet16))
 
-# =============================================================================
-# 5. Answer Research Question 1: Expected Advancement Past Round 2
-# =============================================================================
 
-cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
-cat("RESEARCH QUESTION 1: Expected 8-12 Seeds to Advance Past Round 2\n")
-cat(paste(rep("=", 70), collapse = ""), "\n\n", sep = "")
+# Answer Research Question 1: Expected Advancement Past Round 2
 
 cat(sprintf(
     "Expected 8-12 seeds to advance to Round of 32: %.2f\n",
@@ -180,15 +147,8 @@ advancement_summary <- second_round_summary %>%
     )
 print(advancement_summary)
 
-# =============================================================================
-# 6. Calculate Elite 8 and Final Four Probabilities
-# =============================================================================
 
-cat("\nCalculating Elite 8 and Final Four probabilities...\n")
-
-# For teams that reach Sweet 16, they face other region winners
-# Typically 1-4 seeds, but some variation
-# We'll use average abilities of top seeds as approximation
+# Calculate Elite 8 and Final Four Probabilities
 
 # Get average abilities of top seeds by region
 top_seed_abilities <- team_abilities %>%
@@ -227,21 +187,8 @@ deeper_summary <- deeper_runs %>%
         expected_champions = sum(prob_win_title, na.rm = TRUE)
     )
 
-cat("\nDeeper Tournament Run Probabilities:\n")
-print(deeper_summary)
 
-# =============================================================================
-# 7. Conditional Probabilities (Given Advancement Past Round 2)
-# NOTE: These are ANALYTICAL ESTIMATES based on heuristic opponent assumptions.
-#       For robust conditional probabilities, refer to Script 04 simulation results.
-# =============================================================================
-
-cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
-cat("RESEARCH QUESTION 2: Conditional Probabilities (Analytical Estimates)\n")
-cat("⚠️  NOTE: Simulation-based conditionals (Script 04) are the primary results.\n")
-cat(paste(rep("=", 70), collapse = ""), "\n\n", sep = "")
-
-cat("Given that an 8-12 seed advances past Round 2 (reaches Sweet 16):\n\n")
+# Conditional Probabilities (Given Advancement Past Round 2)
 
 # Calculate conditional probabilities
 conditional_probs <- deeper_runs %>%
@@ -289,7 +236,6 @@ overall_conditional <- conditional_probs %>%
         )
     )
 
-cat("\nOverall Conditional Probabilities for 8-12 Seeds:\n")
 cat(sprintf(
     "  P(Elite 8 | Sweet 16) = %.2f%%\n",
     overall_conditional$prob_elite8_given_s16 * 100
@@ -307,11 +253,7 @@ cat(sprintf(
     overall_conditional$prob_champion_given_s16 * 100
 ))
 
-# =============================================================================
-# 8. Compare to Higher Seeds
-# =============================================================================
-
-cat("\nComparison to other seed ranges...\n")
+# Compare to Higher Seeds
 
 # Calculate similar metrics for all tournament seeds
 all_seeds_summary <- team_abilities %>%
@@ -331,16 +273,10 @@ all_seeds_summary <- team_abilities %>%
         sd_lambda = sd(lambda)
     )
 
-cat("\nAverage team strength by seed group:\n")
-print(all_seeds_summary)
 
-# =============================================================================
-# 9. Save Analysis Results
-# =============================================================================
 
-cat("\nSaving analysis results...\n")
+# Save Analysis Results
 
-# Save detailed team-level results
 saveRDS(first_round_analysis,
     file = here("results", "tables", "first_round_analysis.rds")
 )
@@ -354,7 +290,6 @@ saveRDS(conditional_probs,
     file = here("results", "tables", "conditional_probabilities.rds")
 )
 
-# Save summary tables
 write_csv(first_round_summary,
     file = here("results", "tables", "first_round_summary.csv")
 )
@@ -383,58 +318,3 @@ key_results <- list(
 )
 
 saveRDS(key_results, file = here("results", "tables", "key_results.rds"))
-
-# =============================================================================
-# 10. Generate Final Summary Report
-# =============================================================================
-
-cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
-cat("8-12 SEED ANALYSIS SUMMARY\n")
-cat(paste(rep("=", 70), collapse = ""), "\n\n", sep = "")
-
-cat("RESEARCH QUESTION 1:\n")
-cat("How many 8-12 seeds should we expect to advance past Round 2?\n\n")
-cat(sprintf(
-    "Answer: We expect approximately %.1f of the 8-12 seeds to advance\n",
-    expected_in_sweet16
-))
-cat(sprintf("        to the Sweet 16 (past Round 2).\n\n"))
-
-cat("Breakdown by seed:\n")
-print(advancement_summary)
-
-cat("\n", paste(rep("-", 70), collapse = ""), "\n\n", sep = "")
-
-cat("RESEARCH QUESTION 2:\n")
-cat("Given that an 8-12 seed advanced past Round 2, what is the chance\n")
-cat("they make it to the finals or win the championship?\n\n")
-
-cat(sprintf("Answer: An 8-12 seed that reaches the Sweet 16 has:\n"))
-cat(sprintf(
-    "  - %.1f%% chance of reaching Elite 8\n",
-    overall_conditional$prob_elite8_given_s16 * 100
-))
-cat(sprintf(
-    "  - %.1f%% chance of reaching Final Four\n",
-    overall_conditional$prob_final4_given_s16 * 100
-))
-cat(sprintf(
-    "  - %.1f%% chance of reaching the Finals\n",
-    overall_conditional$prob_finals_given_s16 * 100
-))
-cat(sprintf(
-    "  - %.1f%% chance of winning the championship\n",
-    overall_conditional$prob_champion_given_s16 * 100
-))
-
-cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
-cat("✓ Seed analysis complete!\n")
-cat(paste(rep("=", 70), collapse = ""), "\n", sep = "")
-
-# =============================================================================
-# NOTES:
-# - Conditional probabilities assume team strength remains constant
-# - Does not account for injuries, momentum, or other contextual factors
-# - Opponent assumptions are based on typical bracket structure
-# - May want to run sensitivity analysis with different opponent assumptions
-# =============================================================================

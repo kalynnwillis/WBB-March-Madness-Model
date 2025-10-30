@@ -1,40 +1,27 @@
-# =============================================================================
-# Script 01: Data Collection (wehoop)
-# Purpose: Pull WBB schedules/results with wehoop, clean to regular-season
-# Outputs:
-#   data/processed/games_cleaned.{csv,rds}
-#   data/processed/bt_data.{csv,rds}
-#   data/processed/tournament_seeds.{csv,rds}
-#   data/processed/mid_tier_seeds.{csv,rds}
-# =============================================================================
-
 suppressPackageStartupMessages({
     library(tidyverse)
     library(lubridate)
     library(here)
 })
 
-# -------- Config --------
-SEASONS <- c(2023, 2024) # seasons you want in the BT fit
+
+# Expanded to include more seasons for more robust model estimation
+# Using 2019-2024 (5 seasons) - skipping 2020 due to COVID disruptions
+SEASONS <- c(2019, 2021, 2022, 2023, 2024)
 set.seed(479)
 
-# -------- Ensure wehoop --------
+
 if (!requireNamespace("wehoop", quietly = TRUE)) {
     install.packages("wehoop")
 }
 library(wehoop)
 
-# -------- Helper to pick first matching column name --------
-pick <- function(cands, nm) {
+# Helper function to pick first available column name
+pick_first <- function(cands, nm) {
     hit <- intersect(cands, nm)
     if (length(hit)) hit[1] else NA_character_
 }
 
-cat("================================================================================\n")
-cat("STEP 1/5: Data Collection (wehoop)\n")
-cat("================================================================================\n\n")
-
-cat("Loading WBB schedules/results with wehoop ...\n")
 raw <- wehoop::load_wbb_schedule(seasons = SEASONS)
 stopifnot(is.data.frame(raw), nrow(raw) > 0)
 
@@ -42,34 +29,27 @@ nm <- names(raw)
 cat("Columns returned by wehoop:\n")
 print(nm)
 
-pick_first <- function(cands, nm) {
-    hit <- intersect(cands, nm)
-    if (length(hit)) hit[1] else NA_character_
-}
-
 # Dates / IDs / season
 date_col <- pick_first(c("game_date", "start_date", "date"), nm)
 season_col <- pick_first(c("season", "season_year"), nm)
 id_col <- pick_first(c("game_id", "id", "espn_game_id"), nm)
 
-# ✅ Team name columns (schema you showed: home_* / away_*)
+
 home_team_col <- pick_first(c(
     "home_display_name", "home_name", "home_location", "home_short_display_name",
-    # older schema fallbacks:
     "home_team", "home_team_name", "home_team_display_name", "home_team_short_display_name"
 ), nm)
 
 away_team_col <- pick_first(c(
     "away_display_name", "away_name", "away_location", "away_short_display_name",
-    # older schema fallbacks:
     "away_team", "away_team_name", "away_team_display_name", "away_team_short_display_name"
 ), nm)
 
-# Scores
+
 home_score_col <- pick_first(c("home_score", "home_points", "home_team_score"), nm)
 away_score_col <- pick_first(c("away_score", "away_points", "away_team_score"), nm)
 
-# Neutral + type
+
 neutral_col <- pick_first(c("neutral_site", "neutral", "is_neutral_site", "site_neutral"), nm)
 type_col <- pick_first(c("season_type", "game_type", "tournament_type", "conference_competition"), nm)
 
@@ -81,13 +61,12 @@ print(list(
     neutral_col = neutral_col, type_col = type_col
 ))
 
-# Fail only if truly critical fields are missing
+
 must_have <- c(date_col, season_col, home_team_col, away_team_col)
 if (any(is.na(must_have))) {
     stop("Critical columns missing after remapping. Ping me with the printed names(raw).")
 }
 
-# Build unified frame (carry season_type/neutral along)
 games_combined <- raw |>
     transmute(
         game_id = if (!is.na(id_col)) as.character(.data[[id_col]]) else NA_character_,
@@ -108,58 +87,38 @@ games_combined <- raw |>
     ) |>
     distinct(game_id, .keep_all = TRUE)
 
-cat(sprintf("\nTotal rows pulled: %d\n", nrow(games_combined)))
-cat("Sample (names only):\n")
+
 print(head(games_combined |> select(season, game_date, home_team, away_team, home_score, away_score, neutral_site, season_type)))
 
-# --- Regular-season filter ---
-# If season_type is numeric per ESPN (1=preseason, 2=regular, 3=postseason), keep == 2.
-use_numeric_regular <- is.numeric(games_combined$season_type) && any(games_combined$season_type == 2, na.rm = TRUE)
-
-if (use_numeric_regular) {
-    cat("Detected numeric season_type; filtering to season_type == 2 (regular season)\n")
-    games_cleaned <- games_combined |>
-        filter(season_type == 2)
-} else {
-    cat("No reliable numeric season_type; using date cutoff (~Mar 15) for regular season\n")
-    games_cleaned <- games_combined |>
-        filter(lubridate::month(game_date) < 3 | (lubridate::month(game_date) == 3 & lubridate::day(game_date) < 15))
-}
-# ---- Division I filter (robust guard against ESPN schema changes) ----
+# ====== D-I NORMALIZATION (BEFORE ANY FILTERING) ======
 normalize_name <- function(x) stringr::str_squish(stringr::str_to_lower(x))
 
-cat("Attempting Division I filter via wehoop teams endpoint...\n")
+n_games_before_d1 <- nrow(games_combined)
+
 d1_teams <- tryCatch(
     suppressMessages(purrr::map_dfr(SEASONS, wehoop::espn_wbb_teams)),
     error = function(e) NULL
 )
 
-# Robust fallback logic: prefer ID-based joins when available, else name-normalization
 if (is.null(d1_teams) || !"team_id" %in% names(d1_teams)) {
     cat("⚠️  teams endpoint unavailable or schema changed; using name-normalized + connectivity filter only\n")
-    # The connected-component + min-games approach below will handle quality control
-    # No additional D1 filtering applied
+    games_norm <- games_combined
 } else {
     cat("✓ Successfully pulled D1 teams metadata\n")
-    # Try to join on team_id if games have IDs; otherwise fall back to name-normalized join
     nm_t <- names(d1_teams)
 
-    name_col <- pick(c("display_name", "short_display_name", "name", "team", "school"), nm_t)
-    class_col <- pick(c("classification", "org", "org_type"), nm_t)
-    div_col <- pick(c("division", "division_name", "division_short"), nm_t)
+    name_col <- pick_first(c("display_name", "short_display_name", "name", "team", "school"), nm_t)
+    class_col <- pick_first(c("classification", "org", "org_type"), nm_t)
+    div_col <- pick_first(c("division", "division_name", "division_short"), nm_t)
 
-    # conservative DI filter:
     wbb_di <- d1_teams |>
         dplyr::mutate(
             .team_name = if (!is.na(name_col)) .data[[name_col]] else NA_character_,
             .class     = if (!is.na(class_col)) .data[[class_col]] else NA_character_,
             .div       = if (!is.na(div_col)) .data[[div_col]] else NA_character_
         ) |>
-        # keep rows that look like NCAA Division I
         dplyr::filter(
-            # classification sometimes "ncaa" or "NCAA"
             is.na(.class) | stringr::str_detect(tolower(.class), "ncaa"),
-            # division sometimes "1", "I", "Division I", or missing; keep when matches I/1
             is.na(.div) | stringr::str_detect(tolower(.div), "^(1|i|division i)\\b")
         ) |>
         dplyr::transmute(
@@ -169,8 +128,10 @@ if (is.null(d1_teams) || !"team_id" %in% names(d1_teams)) {
         dplyr::distinct() |>
         dplyr::filter(!is.na(di_key), di_key != "")
 
-    # build keys on schedule names and keep only DI vs DI
-    games_combined <- games_combined |>
+    cat(sprintf("D-I teams in roster: %d\n", nrow(wbb_di)))
+
+    # Apply D-I normalization and filtering
+    games_norm <- games_combined |>
         dplyr::mutate(
             home_key = normalize_name(home_team),
             away_key = normalize_name(away_team)
@@ -185,6 +146,35 @@ if (is.null(d1_teams) || !"team_id" %in% names(d1_teams)) {
             away_team = away_di_team
         ) |>
         dplyr::select(-home_di_team, -away_di_team, -home_key, -away_key)
+
+    n_games_after_d1 <- nrow(games_norm)
+    cat(sprintf(
+        "D-I filter: %d games → %d games (%.1f%% kept)\n",
+        n_games_before_d1, n_games_after_d1,
+        100 * n_games_after_d1 / n_games_before_d1
+    ))
+}
+
+# ====== REGULAR-SEASON FILTER (IMPROVED) ======
+# Coerce season_type once and handle both numeric and text
+stype <- suppressWarnings(as.integer(games_norm$season_type))
+
+if (!all(is.na(stype)) && any(stype == 2, na.rm = TRUE)) {
+    # Numeric season_type: 2 = regular season
+    cat("Using numeric season_type filter (2 = regular season)\n")
+    games_cleaned <- games_norm |> filter(stype == 2)
+} else {
+    # Text or missing season_type: use text matching + date fallback
+    cat("Using text/date-based season filter\n")
+    stxt <- tolower(as.character(games_norm$season_type))
+    stxt[is.na(stxt)] <- ""
+
+    games_cleaned <- games_norm |>
+        filter(
+            stringr::str_detect(stxt, "regular|season\\b") |
+                (!stringr::str_detect(stxt, "post|tourn|conf|champ|playoff") &
+                    lubridate::month(game_date) <= 2)
+        )
 }
 
 # Completed games with valid scores, no ties
@@ -206,11 +196,9 @@ cat(sprintf(
     length(unique(c(games_cleaned$home_team, games_cleaned$away_team)))
 ))
 
-# ---- Keep only largest connected component (avoid separation) ----
 if (!requireNamespace("igraph", quietly = TRUE)) install.packages("igraph")
 library(igraph)
 
-cat("Finding largest connected component...\n")
 g <- graph_from_data_frame(
     games_cleaned |> distinct(home_team, away_team),
     directed = FALSE
@@ -228,8 +216,6 @@ cat(sprintf(
     length(unique(c(games_cleaned$home_team, games_cleaned$away_team)))
 ))
 
-# ---- Require minimum games to reduce low-information teams ----
-cat("Filtering teams with < 8 games...\n")
 team_game_counts <- bind_rows(
     games_cleaned |> count(team = home_team, name = "n"),
     games_cleaned |> count(team = away_team, name = "n")
@@ -250,6 +236,17 @@ cat(sprintf(
     length(unique(c(games_cleaned$home_team, games_cleaned$away_team)))
 ))
 
+# Print summary by season
+cat("\nGames and teams by season:\n")
+season_summary <- games_cleaned %>%
+    group_by(season) %>%
+    summarise(
+        n_games = n(),
+        n_teams = length(unique(c(home_team, away_team))),
+        .groups = "drop"
+    )
+print(season_summary)
+
 if (nrow(games_cleaned) == 0) stop("No games remain after filtering!")
 
 
@@ -263,7 +260,6 @@ bt_data <- games_cleaned |>
         home.wins = sum(home_winner),
         away.wins = sum(away_winner),
         total_games = dplyr::n(),
-        # mean home-advantage indicator for this pair (non-neutral fraction)
         home_adv_bar = mean(1L - neutral_site),
         .groups = "drop"
     ) |>
@@ -272,95 +268,97 @@ bt_data <- games_cleaned |>
         away.team = factor(away.team, levels = unique_teams)
     )
 
-cat(sprintf("Regular-season games kept: %d\n", nrow(games_cleaned)))
-cat(sprintf(
-    "Unique teams: %d | Unique matchups: %d\n",
-    length(unique_teams), nrow(bt_data)
-))
 
-# -------- Seed a bracket (PLACEHOLDER from performance) --------
-# ============================================================================
-# ⚠️ CRITICAL NOTE: SYNTHETIC SEEDING
-# ============================================================================
-# These seeds are SYNTHETIC, generated from regular-season win% ranking.
-# They do NOT reflect actual NCAA tournament committee selections.
-#
-# Implications:
-#   • Seed matchups (8v9, 5v12, etc.) are model-based projections
-#   • All seed-conditioned results are "what-if" scenarios, not historical
-#   • The analysis demonstrates methodology applicable to real brackets
-#
-# To use real seeds:
-#   1. Create tournament_seeds.csv with columns: season, team, seed, region
-#   2. Replace the synthetic seeding block below with:
-#      tournament_seeds <- read_csv("path/to/real_seeds.csv")
-# ============================================================================
-cat("\n⚠️  Creating PLACEHOLDER bracket from win percentage (not real seeds)\n")
-team_perf <- games_cleaned |>
-    transmute(team = home_team, win = home_winner) |>
-    bind_rows(games_cleaned |>
-        transmute(team = away_team, win = away_winner)) |>
-    group_by(team) |>
-    summarise(games = n(), wins = sum(win), win_pct = wins / games, .groups = "drop") |>
-    arrange(desc(win_pct)) |>
-    slice_head(n = 64)
+# ====== TOURNAMENT SEEDS: Real NCAA Data vs Model-Based ======
+# Check if real NCAA tournament seeds are available
+ncaa_seed_file <- here("data", "raw", "ncaa_seeds_historical.csv")
 
-if (nrow(team_perf) < 64) {
-    warning("Fewer than 64 teams available; seeding will be shorter than a full bracket.")
+if (file.exists(ncaa_seed_file)) {
+    cat("\n✓ Loading REAL NCAA tournament seeds from file\n")
+
+    tournament_seeds <- read_csv(ncaa_seed_file, show_col_types = FALSE) |>
+        filter(season == max(SEASONS)) |> # Use most recent season
+        select(team, seed = ncaa_seed, region) |>
+        mutate(
+            team = str_trim(team),
+            season = max(SEASONS)
+        )
+
+    # Verify teams exist in our cleaned data
+    available_teams <- unique(c(games_cleaned$home_team, games_cleaned$away_team))
+    missing_teams <- tournament_seeds |>
+        filter(!team %in% available_teams) |>
+        pull(team)
+
+    if (length(missing_teams) > 0) {
+        cat("⚠️  Warning: Some NCAA tournament teams not found in data:\n")
+        cat("    ", paste(head(missing_teams, 5), collapse = ", "), "\n")
+        cat("    (Team names may not match between NCAA data and wehoop)\n")
+    }
+
+    tournament_seeds <- tournament_seeds |>
+        filter(team %in% available_teams)
+
+    cat(sprintf("  Loaded %d real NCAA tournament teams\n", nrow(tournament_seeds)))
+} else {
+    cat("\n⚠️  NCAA seed file not found - using MODEL-BASED SEEDS\n")
+    cat("    File expected at: data/raw/ncaa_seeds_historical.csv\n")
+    cat("    These are PLACEHOLDER seeds based on model strength ranking\n")
+    cat("    NOT actual NCAA committee seeds!\n\n")
+
+    # Fallback: Model-based seeds (for demonstration/testing only)
+    team_perf <- games_cleaned |>
+        transmute(team = home_team, win = home_winner, season = season) |>
+        bind_rows(games_cleaned |>
+            transmute(team = away_team, win = away_winner, season = season)) |>
+        group_by(team) |>
+        summarise(
+            games = n(),
+            wins = sum(win),
+            win_pct = wins / games,
+            n_seasons = n_distinct(season),
+            .groups = "drop"
+        ) |>
+        arrange(desc(win_pct)) |>
+        slice_head(n = 64)
+
+    if (nrow(team_perf) < 64) {
+        warning("Fewer than 64 teams available; seeding will be shorter than a full bracket.")
+    }
+
+    tournament_seeds <- team_perf |>
+        mutate(
+            seed = rep(1:16, length.out = n()),
+            region = rep(c("Portland", "Albany", "Spokane", "Wichita"), length.out = n()),
+            season = max(SEASONS)
+        ) |>
+        select(season, team, seed, region)
 }
-
-tournament_seeds <- team_perf |>
-    mutate(
-        seed = rep(1:16, length.out = n()),
-        region = rep(c("Portland", "Albany", "Spokane", "Wichita"), length.out = n()),
-        season = max(SEASONS)
-    ) |>
-    select(season, team, seed, region)
 
 mid_tier_seeds <- tournament_seeds |>
     filter(seed >= 8, seed <= 12) |>
     mutate(seed_category = "8-12 seeds")
 
+seed_type <- if (file.exists(ncaa_seed_file)) "NCAA committee seeds" else "model-based ranks"
 cat(sprintf(
-    "Tournament teams (placeholder): %d | 8–12 seeds: %d\n",
-    nrow(tournament_seeds), nrow(mid_tier_seeds)
+    "Tournament teams (%s): %d | 8–12 seeds: %d\n",
+    seed_type, nrow(tournament_seeds), nrow(mid_tier_seeds)
 ))
 
-# -------- Save outputs --------
 dir.create(here("data", "raw"), recursive = TRUE, showWarnings = FALSE)
 dir.create(here("data", "processed"), recursive = TRUE, showWarnings = FALSE)
 
-# Full raw (mapped) — optional
 readr::write_csv(games_combined, here("data", "raw", "games_raw.csv"))
 saveRDS(games_combined, here("data", "raw", "games_raw.rds"))
 
-# Cleaned regular season
 readr::write_csv(games_cleaned, here("data", "processed", "games_cleaned.csv"))
 saveRDS(games_cleaned, here("data", "processed", "games_cleaned.rds"))
 
-# BT pair table
 readr::write_csv(bt_data, here("data", "processed", "bt_data.csv"))
 saveRDS(bt_data, here("data", "processed", "bt_data.rds"))
 
-# Bracket placeholder + mid-tier slice
 readr::write_csv(tournament_seeds, here("data", "processed", "tournament_seeds.csv"))
 saveRDS(tournament_seeds, here("data", "processed", "tournament_seeds.rds"))
 
 readr::write_csv(mid_tier_seeds, here("data", "processed", "mid_tier_seeds.csv"))
 saveRDS(mid_tier_seeds, here("data", "processed", "mid_tier_seeds.rds"))
-
-# -------- Summary --------
-bar <- paste(rep("=", 70), collapse = "")
-cat("\n", bar, "\nDATA COLLECTION SUMMARY\n", bar, "\n", sep = "")
-cat(sprintf("Seasons: %s\n", paste(SEASONS, collapse = ", ")))
-cat(sprintf("Total games pulled: %d\n", nrow(games_combined)))
-cat(sprintf("Regular-season games kept: %d\n", nrow(games_cleaned)))
-cat(sprintf(
-    "Unique teams: %d | Unique matchups: %d\n",
-    length(unique_teams), nrow(bt_data)
-))
-cat(sprintf(
-    "Tournament teams (placeholder): %d | 8–12 seeds: %d\n",
-    nrow(tournament_seeds), nrow(mid_tier_seeds)
-))
-cat(bar, "\n✓ Data collection complete!\n", bar, "\n", sep = "")

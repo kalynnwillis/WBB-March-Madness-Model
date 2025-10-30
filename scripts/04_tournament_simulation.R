@@ -2,41 +2,17 @@
 # Script 04: Tournament Simulation
 # Purpose: Monte Carlo simulation of March Madness tournament outcomes
 #
-# PERFORMANCE OPTIMIZATIONS APPLIED:
-# - Fast matrix-based lookups (no dplyr in hot path)
-# - Vectorized simulation functions (no rowwise operations)
-# - Parallel execution using mclapply (multi-core)
-# - Expected speedup: 10-30x faster than original implementation
-# =============================================================================
 
-# Load required libraries
 library(tidyverse)
 library(here)
 
-# Load helper functions
 source(here("scripts", "00_helper_functions.R"))
 
 dir_create_safe("results", "tables")
 
-# =============================================================================
-# 1. Load Model Results and Data
-# =============================================================================
-
-cat("Loading model results...\n")
-
 team_abilities <- readRDS(here("data", "processed", "team_abilities_with_seeds.rds"))
 win_probs <- readRDS(here("data", "processed", "win_probability_matrix.rds"))
 
-cat("✓ Data loaded successfully\n")
-
-# =============================================================================
-# 1b. Build Fast Lookup Tables
-# =============================================================================
-
-cat("Building fast lookup tables...\n")
-
-# ---- FAST LOOKUPS ----
-# We only need (seed, region) -> (team, lambda). Build tiny matrices.
 regions <- sort(unique(team_abilities$region))
 if (length(regions) != 4) message("Note: found ", length(regions), " regions; using whatever is present.")
 
@@ -63,7 +39,6 @@ for (i in seq_len(nrow(tmp))) {
     }
 }
 
-# Fallbacks for any missing (seed,region): use seed-wise average across regions
 seed_means <- tapply(tmp$lambda, tmp$seed, mean, na.rm = TRUE)
 for (rr in rownames(lambda_mat)) {
     for (ss in colnames(lambda_mat)) {
@@ -74,25 +49,18 @@ for (rr in rownames(lambda_mat)) {
     }
 }
 
-# Small helpers (no dplyr):
 get_lambda_fast <- function(seed, region) lambda_mat[region, as.character(seed)]
 get_team_fast <- function(seed, region) team_mat[region, as.character(seed)]
 inv_logit <- function(x) 1 / (1 + exp(-x))
 
-cat("✓ Fast lookup tables built\n")
 
-# =============================================================================
-# 2. Define Tournament Structure
-# =============================================================================
-
-cat("\nDefining tournament structure...\n")
+# Define Tournament Structure
 
 # Standard NCAA Women's Tournament bracket
 # 64 teams, 4 regions, single elimination
 
 # Define the bracket structure with standard matchups
 create_bracket_structure <- function() {
-    # Each region has 16 teams seeded 1-16
     regions <- c("Portland", "Albany", "Spokane", "Wichita") # Example region names
 
     # Round 1 matchups (Round of 64)
@@ -109,16 +77,12 @@ create_bracket_structure <- function() {
 
 bracket_structure <- create_bracket_structure()
 
-cat(sprintf("Created bracket with %d first-round games\n", nrow(bracket_structure)))
 
-# =============================================================================
-# 3. Fast Vectorized Tournament Simulation Functions
-# =============================================================================
+# Fast Vectorized Tournament Simulation Functions
 
-# Simulate a single game (vectorized-safe)
+# Simulate a single game
 simulate_game <- function(team1_lambda, team2_lambda) {
     p <- inv_logit(team1_lambda - team2_lambda)
-    # Clip to avoid numeric 0/1 (prevents warnings and stabilizes summaries)
     p <- pmin(pmax(p, 1e-6), 1 - 1e-6)
     rbinom(length(p), size = 1, prob = p)
 }
@@ -135,13 +99,12 @@ simulate_tournament_fast <- function(seed_val = NULL) {
 
     # Do each region independently
     for (rr in rownames(lambda_mat)) {
-        # ----- Round of 64 -----
         team1_l <- get_lambda_fast(hi, rr)
         team2_l <- get_lambda_fast(lo, rr)
         team1_n <- get_team_fast(hi, rr)
         team2_n <- get_team_fast(lo, rr)
 
-        win1 <- simulate_game(team1_l, team2_l) # length 8
+        win1 <- simulate_game(team1_l, team2_l)
         r64_w_seed <- ifelse(win1 == 1, hi, lo)
         r64_w_l <- ifelse(win1 == 1, team1_l, team2_l)
         r64_w_n <- ifelse(win1 == 1, team1_n, team2_n)
@@ -152,8 +115,7 @@ simulate_tournament_fast <- function(seed_val = NULL) {
             winner_seed = r64_w_seed, winner_lambda = r64_w_l, winner_name = r64_w_n
         )
 
-        # ----- Round of 32 -----
-        idx32 <- matrix(r64_w_seed, nrow = 2, byrow = TRUE) # (1v16 vs 8v9), etc.
+        idx32 <- matrix(r64_w_seed, nrow = 2, byrow = TRUE)
         lam32 <- matrix(r64_w_l, nrow = 2, byrow = TRUE)
         nam32 <- matrix(r64_w_n, nrow = 2, byrow = TRUE)
 
@@ -168,7 +130,6 @@ simulate_tournament_fast <- function(seed_val = NULL) {
             winner_seed = r32_w_seed, winner_lambda = r32_w_l, winner_name = r32_w_n
         )
 
-        # ----- Sweet 16 -----
         idx16 <- matrix(r32_w_seed, nrow = 2, byrow = TRUE)
         lam16 <- matrix(r32_w_l, nrow = 2, byrow = TRUE)
         nam16 <- matrix(r32_w_n, nrow = 2, byrow = TRUE)
@@ -184,7 +145,6 @@ simulate_tournament_fast <- function(seed_val = NULL) {
             winner_seed = r16_w_seed, winner_lambda = r16_w_l, winner_name = r16_w_n
         )
 
-        # ----- Elite 8 -----
         idx8 <- c(r16_w_seed[1], r16_w_seed[2])
         lam8 <- c(r16_w_l[1], r16_w_l[2])
         nam8 <- c(r16_w_n[1], r16_w_n[2])
@@ -239,18 +199,19 @@ simulate_tournament_fast <- function(seed_val = NULL) {
     bind_rows(out_rows, ff_rows, list(champ)) %>% bind_rows()
 }
 
-# =============================================================================
-# 4. Run Monte Carlo Simulations (FAST & PARALLEL)
-# =============================================================================
+# Run Monte Carlo Simulations (FAST & PARALLEL)
 
 library(parallel)
 
 N_SIMS <- 5000
-N_CORES <- max(1, detectCores() - 1)
+N_CORES <- tryCatch(
+    {
+        cores <- detectCores()
+        if (is.na(cores) || cores < 1) 1 else max(1, cores - 1)
+    },
+    error = function(e) 1
+)
 
-cat(sprintf("\nSimulating %d tournaments using %d cores...\n", N_SIMS, N_CORES))
-
-# Each worker returns the same tibble shape you already use
 simulation_results <- mclapply(
     X = 1:N_SIMS,
     FUN = function(sim) {
@@ -267,22 +228,15 @@ all_simulations <- bind_rows(simulation_results)
 rm(simulation_results)
 gc(verbose = FALSE)
 
-cat(sprintf("✓ Completed %d tournament simulations\n", N_SIMS))
+#  Analyze 8-12 Seed Performance Across Simulations
 
-# =============================================================================
-# 5. Analyze 8-12 Seed Performance Across Simulations
-# =============================================================================
-
-cat("\nAnalyzing 8-12 seed performance across simulations...\n")
-
-# Define round order (explicit for complete())
+# Define round order
 round_order <- c(
     "Round of 64", "Round of 32", "Sweet 16",
     "Elite 8", "Final Four", "Championship"
 )
 
 # Count 8-12 seeds in each round for each simulation
-# Force all rounds into result with complete() to avoid NaN from missing rounds
 mid_tier_counts <- all_simulations %>%
     mutate(round = factor(round, levels = round_order)) %>%
     group_by(sim_id, round) %>%
@@ -306,28 +260,12 @@ mid_tier_summary <- mid_tier_counts %>%
         q75 = quantile(n_mid_tier, 0.75)
     )
 
-cat("\n8-12 Seed Advancement by Round:\n")
-print(mid_tier_summary)
-
-# =============================================================================
-# 6. Answer Research Question 1: Expected Advancement
-# =============================================================================
-
-cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
-cat("RESEARCH QUESTION 1: Expected 8-12 Seeds by Round\n")
-cat(paste(rep("=", 70), collapse = ""), "\n\n", sep = "")
+# Answer Research Question 1: Expected Advancement
 
 # Round of 32 (after Round 1)
 r32_count <- mid_tier_counts %>%
     filter(round == "Round of 32") %>%
     pull(n_mid_tier)
-
-cat(sprintf("Round of 32 (after Round 1):\n"))
-cat(sprintf("  Expected: %.2f 8-12 seeds\n", mean(r32_count)))
-cat(sprintf(
-    "  95%% CI: [%.2f, %.2f]\n",
-    quantile(r32_count, 0.025), quantile(r32_count, 0.975)
-))
 
 # Sweet 16 (after Round 2)
 s16_count <- mid_tier_counts %>%
@@ -377,16 +315,9 @@ cat(sprintf(
     mean(champ_count > 0) * 100
 ))
 
-# =============================================================================
-# 7. Conditional Probabilities from Simulation
-# =============================================================================
-
-cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
-cat("RESEARCH QUESTION 2: Conditional Probabilities (from simulation)\n")
-cat(paste(rep("=", 70), collapse = ""), "\n\n", sep = "")
+# Conditional Probabilities from Simulation
 
 # For each simulation, track if 8-12 seed reached each round
-# FIX: Create hit indicator BEFORE complete() to avoid 100% bug
 progression_tracking <- all_simulations %>%
     filter(winner_seed >= 8 & winner_seed <= 12) %>%
     transmute(sim_id, round = factor(round, levels = round_order), hit = TRUE)
@@ -409,19 +340,6 @@ n_reached_elite8 <- sum(round_progression$`Elite 8`, na.rm = TRUE)
 n_reached_final4 <- sum(round_progression$`Final Four`, na.rm = TRUE)
 n_reached_champ <- sum(round_progression$Championship, na.rm = TRUE)
 
-cat("Given that an 8-12 seed reaches the Sweet 16:\n\n")
-cat(sprintf(
-    "  P(Elite 8 | Sweet 16) = %.2f%%\n",
-    (n_reached_elite8 / n_reached_sweet16) * 100
-))
-cat(sprintf(
-    "  P(Final Four | Sweet 16) = %.2f%%\n",
-    (n_reached_final4 / n_reached_sweet16) * 100
-))
-cat(sprintf(
-    "  P(Championship | Sweet 16) = %.2f%%\n",
-    (n_reached_champ / n_reached_sweet16) * 100
-))
 
 # Championship winners
 championship_winners <- all_simulations %>%
@@ -438,11 +356,7 @@ cat(sprintf(
     (nrow(mid_tier_championships) / N_SIMS) * 100
 ))
 
-# =============================================================================
-# 8. Analyze Performance by Individual Seed
-# =============================================================================
-
-cat("\nAnalyzing performance by individual seed (8-12)...\n")
+# Analyze Performance by Individual Seed
 
 seed_performance <- all_simulations %>%
     filter(winner_seed >= 8 & winner_seed <= 12) %>%
@@ -455,17 +369,9 @@ seed_performance <- all_simulations %>%
         expected_per_seed = n_reached / (N_SIMS * 4)
     )
 
-cat("\nRound advancement by seed:\n")
-print(seed_performance %>%
-    select(winner_seed, round, n_reached, pct_of_sims))
 
-# =============================================================================
-# 9. Save Simulation Results
-# =============================================================================
+# Save Simulation Results
 
-cat("\nSaving simulation results...\n")
-
-# Save all simulations (large file)
 saveRDS(all_simulations, file = here("results", "tables", "all_simulations.rds"))
 
 # Save summary statistics
@@ -485,34 +391,3 @@ write_csv(championship_winners,
 write_csv(mid_tier_counts,
     file = here("results", "tables", "mid_tier_counts_by_sim.csv")
 )
-
-# =============================================================================
-# 10. Generate Simulation Summary
-# =============================================================================
-
-cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
-cat("TOURNAMENT SIMULATION SUMMARY\n")
-cat(paste(rep("=", 70), collapse = ""), "\n\n", sep = "")
-
-cat(sprintf("Number of simulations: %d\n", N_SIMS))
-cat(sprintf("Total games simulated: %d\n", nrow(all_simulations)))
-
-cat("\nKey Findings:\n")
-cat(sprintf("1. Expected 8-12 seeds in Sweet 16: %.2f\n", mean(s16_count)))
-cat(sprintf("2. Expected 8-12 seeds in Final Four: %.2f\n", mean(f4_count)))
-cat(sprintf(
-    "3. Probability 8-12 seed wins title: %.2f%%\n",
-    (nrow(mid_tier_championships) / N_SIMS) * 100
-))
-
-cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
-cat("✓ Tournament simulation complete!\n")
-cat(paste(rep("=", 70), collapse = ""), "\n", sep = "")
-
-# =============================================================================
-# NOTES:
-# - Simulations assume team strength constant throughout tournament
-# - Does not model injuries, fatigue, or momentum effects
-# - Bracket structure simplified - actual brackets have specific regional placements
-# - Could extend to include uncertainty in lambda estimates
-# =============================================================================

@@ -1,30 +1,19 @@
-# =============================================================================
-# Script 07: Individual Team Probability Visualizations
-# Purpose: Create visualizations for individual team advancement probabilities
-# =============================================================================
+# Individual Team Probability Visualizations
 
-# Load required libraries
 library(tidyverse)
 library(here)
 library(ggplot2)
 
-# Load helper functions
 source(here("scripts", "00_helper_functions.R"))
 
-# Set theme
 theme_set(theme_minimal(base_size = 12))
 
-# Define color palette (Okabe-Ito colorblind-friendly)
 oi_colors <- c(
     "#E69F00", "#56B4E9", "#009E73", "#F0E442",
     "#0072B2", "#D55E00", "#CC79A7", "#999999"
 )
 
-# =============================================================================
-# 1. Load Results
-# =============================================================================
-
-cat("Loading individual team probability results...\n")
+# Load Results
 
 team_probs <- readRDS(here("results", "tables", "individual_team_probabilities.rds"))
 team_matrix <- readRDS(here("results", "tables", "team_advancement_matrix.rds"))
@@ -34,15 +23,10 @@ mid_tier_advancement <- read_csv(
 )
 
 dir_create_safe("results", "figures")
-cat("✓ Data loaded successfully\n")
 
-# =============================================================================
-# 2. Plot: Sweet 16 Probabilities for 8-12 Seeds
-# =============================================================================
 
-cat("\nCreating visualization 1: Sweet 16 probabilities for 8-12 seeds...\n")
+# Sweet 16 Probabilities for 8-12 Seeds
 
-# Prepare data for plotting
 sweet16_data <- mid_tier_advancement %>%
     arrange(desc(`Sweet 16`)) %>%
     mutate(
@@ -90,15 +74,8 @@ ggsave(
     dpi = 300
 )
 
-cat("✓ Saved: 09_sweet16_mid_tier_probabilities.png\n")
+# Round-by-Round Progression for Top Mid-Tier Teams
 
-# =============================================================================
-# 3. Plot: Round-by-Round Progression for Top Mid-Tier Teams
-# =============================================================================
-
-cat("\nCreating visualization 2: Round-by-round progression...\n")
-
-# Define round order
 round_order <- c(
     "Round of 64", "Round of 32", "Sweet 16",
     "Elite 8", "Final Four", "Championship"
@@ -152,15 +129,8 @@ ggsave(
     dpi = 300
 )
 
-cat("✓ Saved: 10_round_by_round_progression.png\n")
+# Heatmap of All Round Probabilities
 
-# =============================================================================
-# 4. Plot: Heatmap of All Round Probabilities
-# =============================================================================
-
-cat("\nCreating visualization 3: Probability heatmap...\n")
-
-# Prepare heatmap data
 heatmap_data <- mid_tier_advancement %>%
     pivot_longer(
         cols = c("Round of 64", "Round of 32", "Sweet 16", "Elite 8", "Final Four"),
@@ -208,15 +178,8 @@ ggsave(
     dpi = 300
 )
 
-cat("✓ Saved: 11_probability_heatmap.png\n")
+# Comparison with Historical Context
 
-# =============================================================================
-# 5. Plot: Comparison with Historical Context
-# =============================================================================
-
-cat("\nCreating visualization 4: Historical context comparison...\n")
-
-# Calculate expected counts by round
 expected_counts <- team_probs %>%
     filter(is_mid_tier_seed == TRUE) %>%
     group_by(round) %>%
@@ -278,15 +241,9 @@ ggsave(
     dpi = 300
 )
 
-cat("✓ Saved: 12_expected_vs_observed.png\n")
 
-# =============================================================================
-# 6. Create Summary Dashboard for Individual Teams
-# =============================================================================
+# Individual team spotlight
 
-cat("\nCreating visualization 5: Individual team spotlight...\n")
-
-# Focus on Stanford (highest probability) and create detailed view
 stanford_data <- team_probs %>%
     filter(winner_name == "Stanford Cardinal") %>%
     mutate(
@@ -294,7 +251,6 @@ stanford_data <- team_probs %>%
         round_num = as.numeric(round)
     )
 
-# Create bar chart with confidence-like intervals based on simulation variance
 p5 <- ggplot(stanford_data, aes(x = round, y = percentage)) +
     geom_col(fill = oi_colors[5], alpha = 0.8, width = 0.7) +
     geom_text(aes(label = sprintf("%.1f%%\n(%d/5000)", percentage, times_reached)),
@@ -322,24 +278,3 @@ ggsave(
     height = 6,
     dpi = 300
 )
-
-cat("✓ Saved: 13_stanford_spotlight.png\n")
-
-# =============================================================================
-# Summary
-# =============================================================================
-
-cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
-cat("VISUALIZATION COMPLETE\n")
-cat(paste(rep("=", 70), collapse = ""), "\n\n", sep = "")
-
-cat("Generated visualizations:\n")
-cat("  1. 09_sweet16_mid_tier_probabilities.png - Bar chart of Sweet 16 probabilities\n")
-cat("  2. 10_round_by_round_progression.png - Line chart showing progression through rounds\n")
-cat("  3. 11_probability_heatmap.png - Heatmap of all probabilities\n")
-cat("  4. 12_expected_vs_observed.png - Comparison with 2023-2024 data\n")
-cat("  5. 13_stanford_spotlight.png - Detailed view of highest probability team\n")
-
-cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
-cat("✓ All visualizations saved to results/figures/\n")
-cat(paste(rep("=", 70), collapse = ""), "\n", sep = "")

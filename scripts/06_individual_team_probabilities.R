@@ -1,41 +1,20 @@
-# =============================================================================
-# Script 06: Individual Team Probabilities
-# Purpose: Calculate the probability of specific teams reaching each round
-# =============================================================================
+# Individual Team Probabilities
 
-# Load required libraries
 library(tidyverse)
 library(here)
 
-# Load helper functions
 source(here("scripts", "00_helper_functions.R"))
 
 dir_create_safe("results", "tables")
 
-# =============================================================================
-# 1. Load Simulation Results
-# =============================================================================
-
-cat("Loading simulation results...\n")
+# Load Simulation Results
 
 all_simulations <- readRDS(here("results", "tables", "all_simulations.rds"))
 team_abilities <- readRDS(here("data", "processed", "team_abilities_with_seeds.rds"))
 
-cat("✓ Data loaded successfully\n")
-
-# =============================================================================
-# 2. Calculate Individual Team Advancement Probabilities
-# =============================================================================
-
-cat("\nCalculating individual team advancement probabilities...\n")
-
 # Define round order
-round_order <- c(
-    "Round of 64", "Round of 32", "Sweet 16",
-    "Elite 8", "Final Four", "Championship"
-)
+round_order <- c("Round of 64", "Round of 32", "Sweet 16", "Elite 8", "Final Four", "Championship")
 
-# Count how many times each team reached each round
 team_round_counts <- all_simulations %>%
     group_by(winner_name, round) %>%
     summarise(times_reached = n(), .groups = "drop")
@@ -58,11 +37,7 @@ team_probabilities_full <- team_probabilities %>%
         by = c("winner_name" = "team")
     )
 
-# =============================================================================
-# 3. Focus on 8-12 Seed Teams
-# =============================================================================
-
-cat("\nAnalyzing 8-12 seed team probabilities...\n")
+# Focus on 8-12 Seed Teams
 
 mid_tier_probabilities <- team_probabilities_full %>%
     filter(is_mid_tier_seed == TRUE) %>%
@@ -73,17 +48,11 @@ sweet16_mid_tier <- mid_tier_probabilities %>%
     filter(round == "Sweet 16") %>%
     arrange(desc(probability))
 
-cat("\nProbability of each 8-12 seed reaching Sweet 16:\n")
 print(sweet16_mid_tier %>%
     select(winner_name, seed, region, probability, percentage, times_reached))
 
-# =============================================================================
-# 4. Create Comprehensive Team Report
-# =============================================================================
+# Create Comprehensive Team Report
 
-cat("\nGenerating comprehensive team advancement report...\n")
-
-# For each team, create a row with probabilities for all rounds
 team_advancement_matrix <- team_probabilities_full %>%
     select(winner_name, round, probability, seed, region, is_mid_tier_seed) %>%
     pivot_wider(
@@ -91,11 +60,12 @@ team_advancement_matrix <- team_probabilities_full %>%
         values_from = probability,
         values_fill = 0
     ) %>%
-    # Ensure columns are in correct order
     select(
         winner_name, seed, region, is_mid_tier_seed,
-        any_of(c("Round of 64", "Round of 32", "Sweet 16",
-                 "Elite 8", "Final Four", "Championship"))
+        any_of(c(
+            "Round of 64", "Round of 32", "Sweet 16",
+            "Elite 8", "Final Four", "Championship"
+        ))
     )
 
 # Filter for 8-12 seeds and sort by Sweet 16 probability
@@ -108,11 +78,7 @@ print(mid_tier_advancement %>%
     select(winner_name, seed, region, `Sweet 16`, `Elite 8`, `Final Four`) %>%
     head(10))
 
-# =============================================================================
-# 5. Statistical Summary by Seed
-# =============================================================================
-
-cat("\nCalculating statistical summary by seed...\n")
+# Statistical Summary by Seed
 
 seed_summary <- team_probabilities_full %>%
     filter(is_mid_tier_seed == TRUE) %>%
@@ -132,14 +98,6 @@ print(seed_summary %>%
     filter(round == "Sweet 16") %>%
     select(seed, n_teams, avg_probability, min_probability, max_probability))
 
-# =============================================================================
-# 6. Identify Most Likely Mid-Tier Sweet 16 Teams
-# =============================================================================
-
-cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
-cat("MOST LIKELY 8-12 SEEDS TO REACH SWEET 16\n")
-cat(paste(rep("=", 70), collapse = ""), "\n\n", sep = "")
-
 top_sweet16_candidates <- sweet16_mid_tier %>%
     arrange(desc(probability)) %>%
     head(10)
@@ -154,12 +112,12 @@ for (i in 1:nrow(top_sweet16_candidates)) {
         "   Sweet 16 Probability: %.2f%% (%d / %d simulations)\n",
         team$percentage, team$times_reached, n_sims
     ))
-    
+
     # Get probabilities for other rounds
     team_all_rounds <- team_probabilities_full %>%
         filter(winner_name == team$winner_name) %>%
         arrange(match(round, round_order))
-    
+
     cat("   Round-by-round probabilities:\n")
     for (j in 1:nrow(team_all_rounds)) {
         cat(sprintf(
@@ -171,13 +129,7 @@ for (i in 1:nrow(top_sweet16_candidates)) {
     cat("\n")
 }
 
-# =============================================================================
-# 7. Compare to Historical Data (2023-2024)
-# =============================================================================
-
-cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
-cat("HISTORICAL CONTEXT\n")
-cat(paste(rep("=", 70), collapse = ""), "\n\n", sep = "")
+# Compare to Historical Data (2023-2024)
 
 cat("Historical Observation: In 2023 and 2024, NO 8-12 seeds made it to Sweet 16\n\n")
 
@@ -201,12 +153,6 @@ cat(sprintf(
 ))
 cat("\n")
 cat("This suggests the 2023-2024 results were somewhat unusual but not impossible.\n")
-
-# =============================================================================
-# 8. Save Results
-# =============================================================================
-
-cat("\nSaving results...\n")
 
 # Save individual team probabilities
 saveRDS(team_probabilities_full,
@@ -236,45 +182,3 @@ write_csv(sweet16_mid_tier,
 write_csv(seed_summary,
     file = here("results", "tables", "seed_advancement_summary.csv")
 )
-
-cat("✓ Results saved successfully\n")
-
-# =============================================================================
-# 9. Generate Summary Report
-# =============================================================================
-
-cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
-cat("INDIVIDUAL TEAM PROBABILITY ANALYSIS COMPLETE\n")
-cat(paste(rep("=", 70), collapse = ""), "\n\n", sep = "")
-
-cat(sprintf("Total teams analyzed: %d\n", n_distinct(team_probabilities$winner_name)))
-cat(sprintf("8-12 seed teams: %d\n", n_distinct(mid_tier_probabilities$winner_name)))
-cat(sprintf("Simulations run: %d\n\n", n_sims))
-
-cat("Key Findings:\n")
-cat(sprintf(
-    "1. Highest Sweet 16 probability (8-12 seed): %s (%.2f%%)\n",
-    top_sweet16_candidates$winner_name[1],
-    top_sweet16_candidates$percentage[1]
-))
-cat(sprintf(
-    "2. Average Sweet 16 probability for 8-12 seeds: %.2f%%\n",
-    mean(sweet16_mid_tier$percentage)
-))
-cat(sprintf(
-    "3. Number of 8-12 seeds with >10%% Sweet 16 chance: %d\n",
-    sum(sweet16_mid_tier$percentage > 10)
-))
-
-cat("\n", paste(rep("=", 70), collapse = ""), "\n", sep = "")
-cat("✓ Analysis complete!\n")
-cat(paste(rep("=", 70), collapse = ""), "\n", sep = "")
-
-# =============================================================================
-# NOTES:
-# - Probabilities are based on Monte Carlo simulation results
-# - Teams that didn't appear in a round have 0% probability for that round
-# - Probabilities reflect both team strength and bracket positioning
-# - Results can be used to identify potential "Cinderella" teams
-# =============================================================================
-

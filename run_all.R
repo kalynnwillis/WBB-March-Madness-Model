@@ -62,17 +62,25 @@ cat("✓ All required packages installed\n\n")
 scripts <- c(
     "01_data_collection_UPDATED.R",
     "02_bradley_terry_model.R",
+    "02a_bradley_terry_game_level.R",
     "03_seed_analysis.R",
     "04_tournament_simulation.R",
-    "05_visualization.R"
+    "05_visualization.R",
+    "06_individual_team_probabilities.R",
+    "07_individual_team_viz.R",
+    "08_model_validation.R"
 )
 
 script_names <- c(
     "Data Collection",
-    "Bradley-Terry Model Fitting",
+    "Bradley-Terry Model Fitting (Pair-Level)",
+    "Bradley-Terry Model Fitting (Game-Level - Proper Home Advantage)",
     "Seed Analysis",
     "Tournament Simulation",
-    "Visualization"
+    "Visualization",
+    "Individual Team Probabilities",
+    "Individual Team Visualizations",
+    "Model Validation"
 )
 
 # Execute each script

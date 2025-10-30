@@ -17,18 +17,35 @@ Where λᵢ and λⱼ represent the latent strengths of teams i and j.
 ## Data Source
 - **Package**: `wehoop` - Women's Basketball data package
 - **Repository**: https://github.com/sportsdataverse/wehoop
-- **Scope**: Regular season games (2023-2024 seasons)
+- **Scope**: Regular season games (2019, 2021-2024 seasons)
+  - Note: 2020 season excluded due to COVID-19 disruptions
+  - Multi-season data provides more robust team strength estimates
+  - Tournament seeding based on most recent season only
 
-## Important Note: Synthetic Seeding
+## Important Note: Tournament Seeding Methodology
 
-⚠️ **Tournament Seeds**: This analysis uses a **synthetic bracket** seeded by regular-season win percentage, not actual NCAA committee seeds. 
+⚠️ **Tournament Seeds**: By default, this analysis uses **model-based rankings** (not actual NCAA committee seeds).
 
-- Seeds are assigned purely from win% ranking (top 64 teams)
-- Seed-specific results (e.g., "8-seed vs 9-seed matchups") are **model-based what-ifs**, not historical reproductions
-- All conditional summaries should be interpreted as illustrative projections based on team strength estimates
-- To use real NCAA tournament seeds, replace `tournament_seeds.csv` with actual bracket data
+### Current Implementation:
+- **Seeds assigned by**: Regular-season win percentage (top 64 teams ranked 1-64, grouped as seeds 1-16 in 4 regions)
+- **Interpretation**: Results show "what if tournament was seeded purely by model strength estimates"
+- **NOT**: Analysis of actual NCAA committee decisions or historical tournament matchups
 
-For research purposes, the **simulation-based conditional probabilities** (Script 04) are the primary results. The analytical estimates (Script 03) use heuristic opponent assumptions and serve as exploratory checks only.
+### Why This Matters:
+- NCAA committee considers: strength of schedule, conference performance, "eye test", injuries, geography
+- Our model considers: only regular-season game outcomes
+- **Result**: Model seeds ≠ NCAA seeds (often significantly different)
+
+### Using Real NCAA Seeds:
+To analyze actual NCAA tournament performance:
+1. Create `data/raw/ncaa_seeds_historical.csv` with columns: `season, team, ncaa_seed, region`
+2. Ensure team names match wehoop data exactly
+3. Re-run pipeline - code automatically detects and uses real seeds
+
+### Interpretation Guidelines:
+- With **model-based seeds**: Treat as predictive "what-if" analysis
+- With **real NCAA seeds**: Can analyze actual committee seeding vs. model predictions
+- All probabilities represent expected performance under Bradley-Terry model assumptions
 
 ## Project Structure
 ```

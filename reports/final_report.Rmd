@@ -55,9 +55,9 @@ We analyzed over 5,000 regular season games across 5 seasons to create strength 
 
 ## Main Findings
 
-In a typical tournament, expect about **two to three teams** seeded 8-12 to reach the Sweet Sixteen. Our simulations show an average of 2.36 teams (range 0-7), with most tournaments having 1-3 mid-tier seeds advance. The 2023-2024 drought (zero advancing) has about a **6% chance** of happening—genuinely unusual, occurring naturally about once every **17 years**, not every tournament cycle.
+In a typical tournament, expect about **two to three teams** seeded 8-12 to reach the Sweet Sixteen. Our simulations show an average of 2.21 teams (range 0-7), with most tournaments having 1-3 mid-tier seeds advance. The 2023-2024 drought (zero advancing) has about a **7% chance** of happening—genuinely unusual, occurring naturally about once every **15 years**, not every tournament cycle.
 
-When a mid-tier seed breaks through to the Sweet Sixteen, what happens next? About one in five reach the Final Four, and only one in thirty-eight win the championship. Making the Sweet Sixteen is the hardest part; once there, they're competitive (48.6% reach Elite 8) but still face long odds against top seeds for the title.
+When a mid-tier seed breaks through to the Sweet Sixteen, what happens next? About one in seven reach the Final Four, and only one in fifty-three win the championship. Making the Sweet Sixteen is the hardest part; once there, they're competitive (45% reach Elite 8) but still face long odds against top seeds for the title.
 
 Perhaps most importantly, seed numbers don't tell the whole story. Within the 8-12 seed range, team strength (Bradley-Terry λ values) varies dramatically. The strongest mid-tier seeds can have Sweet Sixteen probabilities near 20%, while the weakest approach zero. The difference? Teams with exceptionally strong regular season performance earn better odds regardless of their seed number. Looking beyond seed numbers to actual team strength separates informed predictions from guesswork.
 
@@ -69,11 +69,11 @@ sweet16_probs <- read_if_exists(here("results", "tables", "sweet16_mid_tier_prob
 
 **Key Numbers:**
 
-- **Expected 8-12 seeds in Sweet 16:** 2.36 teams (simulation average, range 0-7)
-- **Conditional probability of reaching Finals (given Sweet 16):** `r if(!is.null(key_results)) sprintf("%.1f%%", key_results$overall_conditional$prob_finals_given_s16 * 100) else "~6.8%"`
-- **Conditional probability of winning championship (given Sweet 16):** `r if(!is.null(key_results)) sprintf("%.1f%%", key_results$overall_conditional$prob_champion_given_s16 * 100) else "~2.6%"`
+- **Expected 8-12 seeds in Sweet 16:** 2.21 teams (simulation average, range 0-7)
+- **Conditional probability of reaching Finals (given Sweet 16):** `r if(!is.null(key_results)) sprintf("%.1f%%", key_results$overall_conditional$prob_finals_given_s16 * 100) else "~5.3%"`
+- **Conditional probability of winning championship (given Sweet 16):** `r if(!is.null(key_results)) sprintf("%.1f%%", key_results$overall_conditional$prob_champion_given_s16 * 100) else "~1.9%"`
 - **Highest Sweet 16 probability (among mid-tier seeds):** `r if(!is.null(sweet16_probs)) paste0(sweet16_probs$winner_name[1], " (", sweet16_probs$seed[1], "-seed) at ", sprintf("%.1f%%", sweet16_probs$percentage[1])) else "Louisville Cardinals (10-seed) at 17.7%"`
-- **Probability of zero 8-12 seeds in Sweet 16:** 5.94% (about 1-in-17 tournaments)
+- **Probability of zero 8-12 seeds in Sweet 16:** 6.84% (about 1-in-15 tournaments)
 
 ## What This Means
 
@@ -81,7 +81,7 @@ sweet16_probs <- read_if_exists(here("results", "tables", "sweet16_mid_tier_prob
 
 **For coaches and teams:** Regular season success translates directly to tournament opportunity. Strong performance against quality opponents measurably improves your chances, even with a middling seed. The difference between the strongest and weakest 8-12 seeds is substantial—ranging from ~18% Sweet 16 probability down to near-zero.
 
-**For fans and media:** When a 10-seed reaches the Elite Eight, celebrate appropriately. It's genuinely rare. The 2023-2024 drought of zero mid-tier seeds advancing was even rarer—a 1-in-17 occurrence that won't happen frequently.
+**For fans and media:** When a 10-seed reaches the Elite Eight, celebrate appropriately. It's genuinely rare. The 2023-2024 drought of zero mid-tier seeds advancing was even rarer—a 1-in-15 occurrence that won't happen frequently.
 
 ## The Bottom Line
 
@@ -996,9 +996,9 @@ knitr::include_graphics(here("results", "figures", "06_analytical_vs_simulation.
 
 ### Answer to Research Question 1
 
-**We expect approximately 2.36 of the 8-12 seeds to advance to the Sweet 16** in a typical tournament.
+**We expect approximately 2.21 of the 8-12 seeds to advance to the Sweet 16** in a typical tournament.
 
-- **Simulation mean:** 2.36 teams (from 5,000 simulations)
+- **Simulation mean:** 2.21 teams (from 5,000 simulations)
 - **Typical range:** 0-7 teams (full range), 1-3 teams (67% of simulations)
 - **Most common outcomes:** 2 teams (28.6%), 3 teams (27.3%), 1 team (16.7%)
 - **Note:** A seed-level analytical calculation gives 3.75 teams, but this overestimates because it uses average probabilities and doesn't account for the wide variation in team strength within seed groups (some 8-12 seeds have near-zero λ values)
@@ -1044,10 +1044,10 @@ knitr::include_graphics(here("results", "figures", "07_conditional_probabilities
 
 **Given that an 8-12 seed reaches the Sweet 16:**
 
-- Probability of reaching **Elite 8**: `r if(!is.null(key_results)) sprintf("%.1f%%", key_results$overall_conditional$prob_elite8_given_s16 * 100) else "48.6%"`
-- Probability of reaching **Final Four**: `r if(!is.null(key_results)) sprintf("%.1f%%", key_results$overall_conditional$prob_final4_given_s16 * 100) else "18.1%"`
-- Probability of reaching **Finals**: `r if(!is.null(key_results)) sprintf("%.1f%%", key_results$overall_conditional$prob_finals_given_s16 * 100) else "6.8%"`
-- Probability of **winning championship**: `r if(!is.null(key_results)) sprintf("%.1f%%", key_results$overall_conditional$prob_champion_given_s16 * 100) else "2.6%"`
+- Probability of reaching **Elite 8**: `r if(!is.null(key_results)) sprintf("%.1f%%", key_results$overall_conditional$prob_elite8_given_s16 * 100) else "45.0%"`
+- Probability of reaching **Final Four**: `r if(!is.null(key_results)) sprintf("%.1f%%", key_results$overall_conditional$prob_final4_given_s16 * 100) else "15.3%"`
+- Probability of reaching **Finals**: `r if(!is.null(key_results)) sprintf("%.1f%%", key_results$overall_conditional$prob_finals_given_s16 * 100) else "5.3%"`
+- Probability of **winning championship**: `r if(!is.null(key_results)) sprintf("%.1f%%", key_results$overall_conditional$prob_champion_given_s16 * 100) else "1.9%"`
 
 ```{r conditional-table, echo=FALSE}
 if (!is.null(key_results) && !is.null(key_results$conditional_summary)) {
@@ -1072,8 +1072,8 @@ if (!is.null(key_results) && !is.null(key_results$conditional_summary)) {
 
 - Making the Sweet 16 as an 8-12 seed suggests the team has already beaten better-than-expected opponents
 - However, subsequent rounds still present formidable challenges (typically 1-3 seeds)
-- Only about **1 in 38 teams (2.6%)** that reach the Sweet 16 go on to win the championship
-- Nearly half (48.6%) reach the Elite 8, showing they remain competitive once they've proven themselves
+- Only about **1 in 53 teams (1.9%)** that reach the Sweet 16 go on to win the championship
+- Nearly half (45%) reach the Elite 8, showing they remain competitive once they've proven themselves
 - The conditional probabilities vary by seed (8-9 seeds slightly stronger than 10-12 seeds overall)
 
 ## 3.5 Monte Carlo Simulation Results
@@ -1196,13 +1196,13 @@ if (!is.null(mid_tier_advancement)) {
 
 ## 3.7 Historical Context: 2023-2024 Results
 
-Our model predicts approximately **2.36 teams seeded 8-12** should reach the Sweet 16 on average. However, in both 2023 and 2024, **zero 8-12 seeds** reached the Sweet 16.
+Our model predicts approximately **2.21 teams seeded 8-12** should reach the Sweet 16 on average. However, in both 2023 and 2024, **zero 8-12 seeds** reached the Sweet 16.
 
 **Statistical Context:**
 
-- Expected number of 8-12 seeds in Sweet 16: **2.36** (simulation mean)
-- Probability of zero 8-12 seeds reaching Sweet 16: **5.94%**
-- **Interpretation:** About a **1-in-17 chance**—genuinely unusual
+- Expected number of 8-12 seeds in Sweet 16: **2.21** (simulation mean)
+- Probability of zero 8-12 seeds reaching Sweet 16: **6.84%**
+- **Interpretation:** About a **1-in-15 chance**—genuinely unusual
 
 This suggests the 2023-2024 results were **statistically unusual** - such outcomes occur, but infrequently. Possible explanations include:
 
@@ -1211,7 +1211,7 @@ This suggests the 2023-2024 results were **statistically unusual** - such outcom
 - The specific 8-12 seeds in 2023-2024 may have been relatively weaker
 - Injuries or other factors not captured in regular season data
 
-**Back-to-back occurrence (2023 AND 2024):** The probability of zero mid-tier seeds advancing in consecutive tournaments is approximately **0.35%** (5.94% × 5.94%), or about **1-in-280**. This is genuinely rare and represents a notable statistical anomaly. While not impossible, this level of top-seed dominance is historically uncommon and unlikely to persist.
+**Back-to-back occurrence (2023 AND 2024):** The probability of zero mid-tier seeds advancing in consecutive tournaments is approximately **0.47%** (6.84% × 6.84%), or about **1-in-214**. This is genuinely rare and represents a notable statistical anomaly. While not impossible, this level of top-seed dominance is historically uncommon and unlikely to persist.
 
 ---
 
@@ -1221,15 +1221,15 @@ This suggests the 2023-2024 results were **statistically unusual** - such outcom
 
 ### Aggregate-Level Insights
 
-1. **Expected Sweet 16 Advancement:** Approximately 2.36 teams seeded 8-12 reach the Sweet 16 in a typical tournament (range: 0-7, with 1-3 teams in 67% of simulations)
+1. **Expected Sweet 16 Advancement:** Approximately 2.21 teams seeded 8-12 reach the Sweet 16 in a typical tournament (range: 0-7, with 1-3 teams in 67% of simulations)
 
 2. **Conditional Deep Runs:** An 8-12 seed that reaches the Sweet 16 has:
-   - 48.6% chance of Elite 8
-   - 18.1% chance of Final Four
-   - 6.8% chance of Championship game
-   - 2.6% chance of winning it all (about 1-in-38)
+   - 45.0% chance of Elite 8
+   - 15.3% chance of Final Four
+   - 5.3% chance of Championship game
+   - 1.9% chance of winning it all (about 1-in-53)
 
-3. **Model Insights:** Simulation-based estimates (2.36 teams) are more reliable than seed-level analytical calculations (3.75 teams) because simulations account for wide variation in individual team strength within seed groups
+3. **Model Insights:** Simulation-based estimates (2.21 teams) are more reliable than seed-level analytical calculations (3.75 teams) because simulations account for wide variation in individual team strength within seed groups
 
 ### Individual-Level Insights
 
@@ -1239,7 +1239,7 @@ This suggests the 2023-2024 results were **statistically unusual** - such outcom
    - Regular season performance (λ values) explains these differences
    - The gap between strongest and weakest within each seed is substantial
 
-5. **Historical Contextualization:** The 2023-2024 outcome (zero 8-12 seeds in Sweet 16) has 5.94% probability—genuinely unusual, occurring about once every 17 years. Back-to-back occurrence is extremely rare (0.35%, or 1-in-280)
+5. **Historical Contextualization:** The 2023-2024 outcome (zero 8-12 seeds in Sweet 16) has 6.84% probability—genuinely unusual, occurring about once every 15 years. Back-to-back occurrence is extremely rare (0.47%, or 1-in-214)
 
 ## 4.2 Interpretation and Implications
 
@@ -1253,7 +1253,7 @@ This suggests the 2023-2024 results were **statistically unusual** - such outcom
 ### For Sports Media and Fans
 
 - **Calibrate Expectations:** When a 10-seed makes the Elite 8, that's genuinely rare
-- **Understand Variance:** Zero mid-tier seeds advancing happens about once every 17 years. Back-to-back "chalk" tournaments (like 2023-2024) are extremely rare (1-in-280)
+- **Understand Variance:** Zero mid-tier seeds advancing happens about once every 15 years. Back-to-back "chalk" tournaments (like 2023-2024) are extremely rare (1-in-214)
 - **Individual Team Stories:** Focus on specific teams' strengths (λ values) rather than seed generalizations
 - **Context Matters:** The 2023-2024 drought was statistically unusual, not typical tournament behavior
 
@@ -1387,16 +1387,16 @@ Our results quantify competitive balance in the current 64-team, 1-16 seeded for
 
 Using Bradley-Terry models combined with Monte Carlo simulation, we provide rigorous answers to our research questions:
 
-1. **Approximately 2.36 of the 8-12 seeds should advance to the Sweet 16** in a typical tournament (range: 0-7, typically 1-3 teams)
-2. **An 8-12 seed that reaches the Sweet 16 has an 18.1% probability of reaching the Final Four** and a 2.6% probability of winning the championship (about 1-in-38)
+1. **Approximately 2.21 of the 8-12 seeds should advance to the Sweet 16** in a typical tournament (range: 0-7, typically 1-3 teams)
+2. **An 8-12 seed that reaches the Sweet 16 has a 15.3% probability of reaching the Final Four** and a 1.9% probability of winning the championship (about 1-in-53)
 
 Beyond these aggregate findings, our **individual team probability analysis** reveals:
 
 - **Substantial within-seed variation:** Not all 8-seeds are equivalent. Within the 8-12 seed range, team strength (λ values) varies dramatically—from strong teams with ~18% Sweet 16 probability down to weak teams with near-zero probability. Regular season performance explains these differences.
 
-- **Historical context matters:** The 2023-2024 observation of zero 8-12 seeds in the Sweet 16 has a 5.94% probability under our model—genuinely unusual, occurring about once every 17 years. The back-to-back occurrence is extremely rare (0.35%, or 1-in-280).
+- **Historical context matters:** The 2023-2024 observation of zero 8-12 seeds in the Sweet 16 has a 6.84% probability under our model—genuinely unusual, occurring about once every 15 years. The back-to-back occurrence is extremely rare (0.47%, or 1-in-214).
 
-- **Methodological insight:** Simulation-based estimates (2.36 teams) provide more accurate predictions than seed-level analytical calculations (3.75 teams) because simulations account for the full distribution of team strengths within each seed, including very weak teams that drag down the average.
+- **Methodological insight:** Simulation-based estimates (2.21 teams) provide more accurate predictions than seed-level analytical calculations (3.75 teams) because simulations account for the full distribution of team strengths within each seed, including very weak teams that drag down the average.
 
 ## Methodological Contributions
 
@@ -1421,7 +1421,7 @@ For researchers, this work demonstrates sports analytics methodology that balanc
 - Computational validation (Monte Carlo simulation)
 - Practical application (actionable tournament insights)
 
-The 2023-2024 tournaments reminded us that even well-fitting models cannot perfectly predict single-elimination variance. But by understanding the *distribution* of possible outcomes, we can better appreciate when something genuinely unusual occurs. The back-to-back drought of mid-tier seeds was not just random variation—it was a genuinely rare event (1-in-280) that demonstrated exceptional top-seed dominance unlikely to persist.
+The 2023-2024 tournaments reminded us that even well-fitting models cannot perfectly predict single-elimination variance. But by understanding the *distribution* of possible outcomes, we can better appreciate when something genuinely unusual occurs. The back-to-back drought of mid-tier seeds was not just random variation—it was a genuinely rare event (1-in-214) that demonstrated exceptional top-seed dominance unlikely to persist.
 
 These findings provide a quantitative framework for understanding mid-tier seed performance in Women's March Madness. The methodology allows analysis at both the **aggregate level** (how many 8-12 seeds overall) and **individual team level** (which specific teams are most likely), making it valuable for bracket predictions, team evaluation, and understanding tournament dynamics.
 

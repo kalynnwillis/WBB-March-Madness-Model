@@ -87,6 +87,10 @@ sweet16_probs <- read_if_exists(here("results", "tables", "sweet16_mid_tier_prob
 
 The past two tournaments showed what happens when favorites dominate at a historically unusual level. Mid-tier seeds will break through again—in fact, 2-3 typically do each year. Understanding individual team strength, beyond just seed numbers, helps identify those breakthrough candidates. Basketball remains beautifully unpredictable, but patterns emerge. Expect about two to three mid-tier seeds to reach the Sweet Sixteen in most years, with about half of those making deeper runs to the Elite Eight.
 
+## Important Caveat
+
+This analysis uses **synthetic tournament seeds** based on team strength (Bradley-Terry λ values), not actual NCAA selection committee seeds. Results show what would happen if seeds perfectly matched team quality—a "what-if" scenario. Real NCAA tournaments involve committee decisions that may over- or under-seed teams relative to their true strength. To predict an actual tournament, you would need to use the real NCAA bracket. See Section 4.3 for detailed discussion of this limitation.
+
 ---
 
 # 1. Introduction
@@ -123,9 +127,11 @@ Additionally, we extend the analysis to:
 - Contextualize the 2023-2024 historical outcome (zero 8-12 seeds in Sweet 16)
 - Validate analytical predictions with Monte Carlo simulation
 
-## 1.4 Historical Context
+## 1.4 Historical Context and Scope
 
 In both the 2023 and 2024 NCAA Women's Basketball Tournaments, **no teams seeded 8-12 reached the Sweet 16**. This unprecedented back-to-back occurrence motivates our analysis: Is this outcome statistically unusual, or should we expect such scenarios regularly?
+
+**Important Note on Scope:** This analysis uses **synthetic tournament seeds** based on team strength (Bradley-Terry λ values) to understand the *expected* dynamics of mid-tier seeds in tournaments. We do not analyze actual historical NCAA tournament brackets. Instead, we ask: "Given team strengths derived from regular season play, what should we expect from teams at the 8-12 seed strength level?" This approach provides insight into tournament dynamics under optimal seeding, though real NCAA committee decisions may deviate from pure strength-based rankings. See Section 2.2 and Section 4.3 for detailed discussion of this methodological choice and its implications.
 
 ---
 
@@ -569,18 +575,38 @@ saveRDS(bt_data, here("data", "processed", "bt_data.rds"))
 saveRDS(tournament_seeds, here("data", "processed", "tournament_seeds.rds"))
 ```
 
-### Important Note: Model-Based Seeding
+### ⚠️ Critical Limitation: Synthetic Seeding
 
-This analysis uses **model-based seeding** derived from Bradley-Terry lambda values, **not actual NCAA committee seeds**. 
+This analysis uses **artificially generated tournament seeds**, not actual NCAA tournament data. This is a fundamental limitation that affects how results should be interpreted.
 
-- Seeds are assigned by ranking the top 64 teams by their aggregated Bradley-Terry strength (λ)
-- This accounts for opponent-adjusted strength, not just raw win percentage
-- Seed-specific matchup probabilities (e.g., "8 vs 9 seed") are **model-based what-if scenarios**, not historical reproductions
-- To use real NCAA tournament data, replace `tournament_seeds.csv` with actual bracket assignments
+**What We Did:**
+- Ranked all teams by their Bradley-Terry strength (λ) aggregated across 5 seasons (2019, 2021-2024)
+- Assigned seeds 1-16 to the top 64 teams across four regions based purely on team strength
+- Simulated tournaments using these model-based seeds
 
-**Key Improvement:** Lambda-based seeding is more accurate than win-percentage seeding because it accounts for strength of schedule. For example, a team with 20 wins against weak opponents gets a lower seed than a team with 20 wins against strong opponents.
+**What We Did NOT Do:**
+- Use actual NCAA selection committee seeds from real tournaments
+- Account for conference tournament results, geographic placement, or selection committee subjective decisions
+- Analyze historical tournament outcomes with real brackets
 
-**Interpretation:** Results should be viewed as **strength-based projections** rather than literal predictions of specific NCAA tournament matchups.
+**Why This Matters:**
+- Our results answer: "What if seeds perfectly matched team strength?"—not "What happened in real NCAA tournaments?"
+- Real committee seeding may over-seed or under-seed teams based on factors beyond pure performance
+- Seed-specific probabilities (e.g., "8-seeds have 12% chance of Sweet 16") refer to **strength-equivalent 8-seeds**, not actual committee-assigned 8-seeds
+- Real bracket matchups would differ from our simulated structure
+
+**Advantages of This Approach:**
+- Strength-based seeding removes committee bias and politics
+- Accounts for opponent-adjusted strength (strength of schedule), not just win percentage
+- Provides "ground truth" baseline of what tournament outcomes would look like with perfect seeding
+- More predictive than committee seeding in some cases (e.g., identifying over/under-seeded teams)
+
+**To Use This Model on Real Tournaments:**
+- Replace synthetic seeds with actual NCAA bracket assignments
+- Re-run simulations using committee-assigned matchups
+- Compare predictions against actual outcomes for validation
+
+**Interpretation:** Results represent **strength-based projections** showing expected outcomes under optimal seeding, not historical tournament analysis. See Section 4.3 for detailed discussion of this limitation and its implications.
 
 ## 2.3 Analysis Approach
 
@@ -1196,7 +1222,9 @@ if (!is.null(mid_tier_advancement)) {
 
 ## 3.7 Historical Context: 2023-2024 Results
 
-Our model predicts approximately **2.21 teams seeded 8-12** should reach the Sweet 16 on average. However, in both 2023 and 2024, **zero 8-12 seeds** reached the Sweet 16.
+**Note:** The following comparison uses actual NCAA tournament outcomes (2023-2024) against our strength-based model predictions. While our model uses synthetic seeds, the observed pattern of zero mid-tier seeds advancing is a real historical fact that we can contextualize.
+
+Our model predicts approximately **2.21 teams seeded 8-12** should reach the Sweet 16 on average. However, in both 2023 and 2024, **zero 8-12 seeds** (as assigned by the NCAA selection committee) reached the Sweet 16.
 
 **Statistical Context:**
 
@@ -1284,15 +1312,36 @@ This suggests the 2023-2024 results were **statistically unusual** - such outcom
 
 ### Data Limitations
 
-1. **Single Season Data:** We use 2023-2024 season data only. Multi-year models might be more robust but complicate team roster continuity issues.
+1. **Synthetic Seeding (Critical Limitation):** This analysis uses **artificially generated seeds** based on Bradley-Terry λ values, **not actual NCAA tournament seeds**. This is a fundamental limitation that affects interpretation:
+   
+   **What we did:**
+   - Ranked all teams by their aggregated Bradley-Terry strength (λ)
+   - Assigned seeds 1-16 to the top 64 teams across four regions
+   - Used these model-based seeds for all tournament simulations
+   
+   **Why this matters:**
+   - The NCAA selection committee uses factors beyond raw team strength: strength of schedule, conference tournament performance, head-to-head records, geographic considerations, and subjective evaluation
+   - Real brackets may have "overseeded" or "underseeded" teams relative to their true strength
+   - Our seed-specific probabilities (e.g., "8-seeds have X% chance") represent **strength-equivalent seeds**, not actual NCAA seeding decisions
+   - Real tournament matchups would differ from our simulated bracket structure
+   
+   **Impact on results:**
+   - Our findings about "how many 8-12 seeds reach Sweet 16" are based on teams that *performed at the 8-12 seed strength level*, not teams that the selection committee actually seeded 8-12
+   - The strength-based approach may actually be more predictive than committee seeding (which can include political factors), but it's not the same as analyzing real historical tournaments
+   - To apply this model to an actual tournament, you would need to use the real NCAA bracket and seeds, not our synthetic ones
+   
+   **Interpretation:** Results should be viewed as **strength-based projections** showing what would happen if seeds perfectly matched team quality, rather than predictions of specific NCAA tournaments with committee-assigned seeds.
 
-2. **Synthetic Seeding:** Our tournament bracket uses win%-based seeding rather than actual NCAA selection committee decisions, which incorporate:
-   - Strength of schedule adjustments
-   - Conference tournament results
-   - Head-to-head records
-   - Subjective evaluations of team quality
+2. **Multi-Season Data Aggregation:** We aggregate Bradley-Terry estimates across 5 seasons (2019, 2021-2024). While this provides more robust estimates, it means:
+   - Team abilities represent average strength across multiple years
+   - Roster changes, coaching changes, and program trajectory are not captured
+   - Recent performance is weighted equally with older performance
+   - The "2024 tournament" we simulate uses aggregated multi-year data, not just 2024 season performance
 
-3. **No Tournament-Specific Data:** We exclude NCAA tournament games from model fitting (to avoid circular reasoning), but tournament performance might reveal team qualities not visible in regular season.
+3. **No Tournament-Specific Data:** We exclude NCAA tournament games from model fitting (to avoid circular reasoning), but tournament performance might reveal team qualities not visible in regular season:
+   - Tournament preparation may differ from regular season
+   - Single-elimination pressure creates different dynamics
+   - Travel, rest, and scheduling in tournaments differ from regular season
 
 ### Methodological Considerations
 

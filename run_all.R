@@ -63,6 +63,7 @@ scripts <- c(
     "01_data_collection_UPDATED.R",
     "02_bradley_terry_model.R",
     "02a_bradley_terry_game_level.R",
+    "02b_bradley_terry_with_covariates.R",
     "03_seed_analysis.R",
     "04_tournament_simulation.R",
     "05_visualization.R",

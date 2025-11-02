@@ -127,7 +127,7 @@
 \makeatother
 \subtitle{Analyzing Mid-Tier Seed (8-12) Advancement Probabilities}
 \author{Kalynn Willis, Jasmine, Ellie}
-\date{2025-10-30}
+\date{2025-11-01}
 
 \begin{document}
 \maketitle
@@ -150,76 +150,87 @@ This study examines middle-seeded teams in March Madness to answer:
 \textbf{How often do 8-12 seeds make deep runs, and which ones should we
 watch most closely?}
 
-We analyzed over 5,000 regular season games to create strength ratings
-for all tournament teams---accounting for who you played and how you
-performed against them, not just wins and losses. We then simulated the
-entire tournament 5,000 times to see what typically happens to teams
-seeded 8-12.
+We analyzed over 5,000 regular season games across 5 seasons to create
+strength ratings for all tournament teams---accounting for who you
+played and how you performed against them, not just wins and losses. We
+then simulated the entire tournament 5,000 times to see what typically
+happens to teams seeded 8-12.
 
 \subsection{Main Findings}\label{main-findings}
 
-In a typical tournament, expect about two teams seeded 8-12 to reach the
-Sweet Sixteen. Sometimes zero, sometimes four, but two is average. The
-2023-2024 drought has about an 18\% chance of happening---like flipping
-heads three times in a row. Unusual, but not shocking. It'll naturally
-occur about once every five or six years.
+In a typical tournament, expect about \textbf{two to three teams} seeded
+8-12 to reach the Sweet Sixteen. Our simulations show an average of 2.36
+teams (range 0-7), with most tournaments having 1-3 mid-tier seeds
+advance. The 2023-2024 drought (zero advancing) has about a \textbf{6\%
+chance} of happening---genuinely unusual, occurring naturally about once
+every \textbf{17 years}, not every tournament cycle.
 
 When a mid-tier seed breaks through to the Sweet Sixteen, what happens
 next? About one in five reach the Final Four, and only one in
-twenty-seven win the championship. Making the Sweet Sixteen is the
-hardest part; once there, they're competitive but still underdogs
-against top seeds.
+thirty-eight win the championship. Making the Sweet Sixteen is the
+hardest part; once there, they're competitive (48.6\% reach Elite 8) but
+still face long odds against top seeds for the title.
 
 Perhaps most importantly, seed numbers don't tell the whole story.
-Stanford (11-seed) has a 62.5\% chance of reaching the Sweet
-Sixteen---better than many higher-seeded teams. Some 12-seeds have less
-than 20\% chance. The difference? Stanford had an exceptionally strong
-regular season. Their seed says ``underdog,'' but their performance says
-``contender.''
+Within the 8-12 seed range, team strength (Bradley-Terry λ values)
+varies dramatically. The strongest mid-tier seeds can have Sweet Sixteen
+probabilities near 20\%, while the weakest approach zero. The
+difference? Teams with exceptionally strong regular season performance
+earn better odds regardless of their seed number. Looking beyond seed
+numbers to actual team strength separates informed predictions from
+guesswork.
 
 \textbf{Key Numbers:}
 
 \begin{itemize}
 \tightlist
 \item
-  \textbf{Expected 8-12 seeds in Sweet 16:} 3.75 teams
+  \textbf{Expected 8-12 seeds in Sweet 16:} 2.36 teams (simulation
+  average, range 0-7)
 \item
   \textbf{Conditional probability of reaching Finals (given Sweet 16):}
-  6.8\%
+  5.3\%
 \item
   \textbf{Conditional probability of winning championship (given Sweet
-  16):} 2.6\%
+  16):} 1.9\%
 \item
-  \textbf{Highest Sweet 16 probability:} Louisville Cardinals (10-seed)
-  at 17.7\%
+  \textbf{Highest Sweet 16 probability (among mid-tier seeds):} Iowa
+  State Cyclones (8-seed) at 17.2\%
+\item
+  \textbf{Probability of zero 8-12 seeds in Sweet 16:} 5.94\% (about
+  1-in-17 tournaments)
 \end{itemize}
 
 \subsection{What This Means}\label{what-this-means}
 
 \textbf{For bracket predictions:} Be conservative with upset picks.
 Expecting five or six mid-tier seeds in the Sweet Sixteen is overly
-optimistic. Pick one or two strong candidates like Stanford rather than
-hoping for multiple Cinderella stories.
+optimistic. Expect 2-3 seeds to advance, with most tournaments having
+1-3. Focus on teams with high λ values (strong regular season
+performance) rather than hoping for multiple Cinderella stories.
 
 \textbf{For coaches and teams:} Regular season success translates
 directly to tournament opportunity. Strong performance against quality
 opponents measurably improves your chances, even with a middling seed.
 The difference between the strongest and weakest 8-12 seeds is
-substantial.
+substantial---ranging from \textasciitilde18\% Sweet 16 probability down
+to near-zero.
 
 \textbf{For fans and media:} When a 10-seed reaches the Elite Eight,
-celebrate appropriately. It's genuinely rare, happening in only 5-10\%
-of tournaments.
+celebrate appropriately. It's genuinely rare. The 2023-2024 drought of
+zero mid-tier seeds advancing was even rarer---a 1-in-17 occurrence that
+won't happen frequently.
 
 \subsection{The Bottom Line}\label{the-bottom-line}
 
-The past two tournaments showed what happens when favorites dominate,
-but history suggests that won't last. Mid-tier seeds will break through
-again. Understanding individual team strength, beyond just seed numbers,
-helps identify those breakthrough candidates. Basketball remains
-beautifully unpredictable, but patterns emerge. Expect about two
-mid-tier seeds to reach the Sweet Sixteen in most years, with perhaps
-one making a deeper run.
+The past two tournaments showed what happens when favorites dominate at
+a historically unusual level. Mid-tier seeds will break through
+again---in fact, 2-3 typically do each year. Understanding individual
+team strength, beyond just seed numbers, helps identify those
+breakthrough candidates. Basketball remains beautifully unpredictable,
+but patterns emerge. Expect about two to three mid-tier seeds to reach
+the Sweet Sixteen in most years, with about half of those making deeper
+runs to the Elite Eight.
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
@@ -374,17 +385,21 @@ accounts for year-to-year variation while providing stable estimates:
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\FunctionTok{library}\NormalTok{(BradleyTerry2)}
+\CommentTok{\# From scripts/02\_bradley\_terry\_model.R}
 
-\CommentTok{\# Load prepared data}
+\ControlFlowTok{if}\NormalTok{ (}\SpecialCharTok{!}\FunctionTok{require}\NormalTok{(}\StringTok{"BradleyTerry2"}\NormalTok{)) \{}
+    \FunctionTok{install.packages}\NormalTok{(}\StringTok{"BradleyTerry2"}\NormalTok{)}
+    \FunctionTok{library}\NormalTok{(BradleyTerry2)}
+\NormalTok{\}}
+
 \NormalTok{bt\_data }\OtherTok{\textless{}{-}} \FunctionTok{readRDS}\NormalTok{(}\FunctionTok{here}\NormalTok{(}\StringTok{"data"}\NormalTok{, }\StringTok{"processed"}\NormalTok{, }\StringTok{"bt\_data.rds"}\NormalTok{))}
+\NormalTok{tournament\_seeds }\OtherTok{\textless{}{-}} \FunctionTok{readRDS}\NormalTok{(}\FunctionTok{here}\NormalTok{(}\StringTok{"data"}\NormalTok{, }\StringTok{"processed"}\NormalTok{, }\StringTok{"tournament\_seeds.rds"}\NormalTok{))}
 
 \CommentTok{\# Fit separate models for each season}
 \NormalTok{seasons }\OtherTok{\textless{}{-}} \FunctionTok{sort}\NormalTok{(}\FunctionTok{unique}\NormalTok{(bt\_data}\SpecialCharTok{$}\NormalTok{season))}
 \NormalTok{all\_season\_abilities }\OtherTok{\textless{}{-}} \FunctionTok{list}\NormalTok{()}
 
 \ControlFlowTok{for}\NormalTok{ (season\_year }\ControlFlowTok{in}\NormalTok{ seasons) \{}
-    \CommentTok{\# Filter data for this season}
 \NormalTok{    bt\_season }\OtherTok{\textless{}{-}}\NormalTok{ bt\_data }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{filter}\NormalTok{(season }\SpecialCharTok{==}\NormalTok{ season\_year)}
 
     \CommentTok{\# Fit Bradley{-}Terry model for this season}
@@ -392,31 +407,49 @@ accounts for year-to-year variation while providing stable estimates:
         \AttributeTok{outcome =} \FunctionTok{cbind}\NormalTok{(home.wins, away.wins),}
         \AttributeTok{player1 =}\NormalTok{ home.team,}
         \AttributeTok{player2 =}\NormalTok{ away.team,}
-        \AttributeTok{formula =} \SpecialCharTok{\textasciitilde{}}\NormalTok{ team }\SpecialCharTok{+}\NormalTok{ home\_adv\_bar, }\CommentTok{\# Home advantage covariate}
+        \AttributeTok{formula =} \SpecialCharTok{\textasciitilde{}}\NormalTok{ team }\SpecialCharTok{+}\NormalTok{ home\_adv\_bar,}
         \AttributeTok{id =} \StringTok{"team"}\NormalTok{,}
         \AttributeTok{contrasts =} \FunctionTok{list}\NormalTok{(}\AttributeTok{team =} \StringTok{"contr.sum"}\NormalTok{),}
         \AttributeTok{data =}\NormalTok{ bt\_season}
 \NormalTok{    )}
 
     \CommentTok{\# Extract abilities}
-\NormalTok{    abilities\_season }\OtherTok{\textless{}{-}}\NormalTok{ BradleyTerry2}\SpecialCharTok{::}\FunctionTok{BTabilities}\NormalTok{(bt\_model\_season) }\SpecialCharTok{\%\textgreater{}\%}
-        \FunctionTok{as.data.frame}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
+\NormalTok{    abilities\_season }\OtherTok{\textless{}{-}}\NormalTok{ BradleyTerry2}\SpecialCharTok{::}\FunctionTok{BTabilities}\NormalTok{(bt\_model\_season)}
+\NormalTok{    abilities\_df }\OtherTok{\textless{}{-}} \FunctionTok{as.data.frame}\NormalTok{(abilities\_season) }\SpecialCharTok{\%\textgreater{}\%}
         \FunctionTok{rownames\_to\_column}\NormalTok{(}\AttributeTok{var =} \StringTok{"team"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+        \FunctionTok{as\_tibble}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
         \FunctionTok{rename}\NormalTok{(}\AttributeTok{lambda =}\NormalTok{ ability, }\AttributeTok{se =}\NormalTok{ s.e.) }\SpecialCharTok{\%\textgreater{}\%}
         \FunctionTok{mutate}\NormalTok{(}\AttributeTok{season =}\NormalTok{ season\_year)}
 
-\NormalTok{    all\_season\_abilities[[}\FunctionTok{as.character}\NormalTok{(season\_year)]] }\OtherTok{\textless{}{-}}\NormalTok{ abilities\_season}
+\NormalTok{    all\_season\_abilities[[}\FunctionTok{as.character}\NormalTok{(season\_year)]] }\OtherTok{\textless{}{-}}\NormalTok{ abilities\_df}
+
+    \CommentTok{\# Convergence checks}
+    \ControlFlowTok{if}\NormalTok{ (}\SpecialCharTok{!}\NormalTok{bt\_model\_season}\SpecialCharTok{$}\NormalTok{converged) \{}
+        \FunctionTok{stop}\NormalTok{(}\FunctionTok{sprintf}\NormalTok{(}\StringTok{"Model FAILED TO CONVERGE for \%d season"}\NormalTok{, season\_year))}
+\NormalTok{    \}}
 \NormalTok{\}}
 
-\CommentTok{\# Aggregate abilities across seasons using inverse{-}variance weighting}
+\CommentTok{\# Combine all seasons\textquotesingle{} abilities}
 \NormalTok{all\_abilities }\OtherTok{\textless{}{-}} \FunctionTok{bind\_rows}\NormalTok{(all\_season\_abilities)}
 
-\NormalTok{team\_abilities\_df }\OtherTok{\textless{}{-}}\NormalTok{ all\_abilities }\SpecialCharTok{\%\textgreater{}\%}
-    \FunctionTok{mutate}\NormalTok{(}\AttributeTok{se =} \FunctionTok{pmax}\NormalTok{(se, }\FloatTok{1e{-}6}\NormalTok{)) }\SpecialCharTok{\%\textgreater{}\%} \CommentTok{\# Prevent division by zero}
+\CommentTok{\# Z{-}score within season (CRITICAL: Each season\textquotesingle{}s BT is identified up to a shift)}
+\NormalTok{all\_abilities\_scaled }\OtherTok{\textless{}{-}}\NormalTok{ all\_abilities }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{group\_by}\NormalTok{(season) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{mutate}\NormalTok{(}
+        \AttributeTok{season\_sd =} \FunctionTok{sd}\NormalTok{(lambda, }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{),}
+        \AttributeTok{season\_mean =} \FunctionTok{mean}\NormalTok{(lambda, }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{),}
+        \AttributeTok{lambda\_z =}\NormalTok{ (lambda }\SpecialCharTok{{-}}\NormalTok{ season\_mean) }\SpecialCharTok{/}\NormalTok{ season\_sd,}
+        \AttributeTok{se\_z =}\NormalTok{ se }\SpecialCharTok{/}\NormalTok{ season\_sd,}
+        \AttributeTok{se\_z =} \FunctionTok{pmax}\NormalTok{(se\_z, }\FloatTok{1e{-}6}\NormalTok{)}
+\NormalTok{    ) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{ungroup}\NormalTok{()}
+
+\CommentTok{\# Aggregate z{-}scored abilities using inverse{-}variance weighting}
+\NormalTok{team\_abilities\_df }\OtherTok{\textless{}{-}}\NormalTok{ all\_abilities\_scaled }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{group\_by}\NormalTok{(team) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{summarise}\NormalTok{(}
-        \AttributeTok{lambda =} \FunctionTok{weighted.mean}\NormalTok{(lambda, }\AttributeTok{w =} \DecValTok{1} \SpecialCharTok{/}\NormalTok{ (se}\SpecialCharTok{\^{}}\DecValTok{2}\NormalTok{), }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{),}
-        \AttributeTok{se =} \FunctionTok{sqrt}\NormalTok{(}\DecValTok{1} \SpecialCharTok{/} \FunctionTok{sum}\NormalTok{(}\DecValTok{1} \SpecialCharTok{/}\NormalTok{ (se}\SpecialCharTok{\^{}}\DecValTok{2}\NormalTok{), }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{)),}
+        \AttributeTok{lambda =} \FunctionTok{weighted.mean}\NormalTok{(lambda\_z, }\AttributeTok{w =} \DecValTok{1} \SpecialCharTok{/}\NormalTok{ (se\_z}\SpecialCharTok{\^{}}\DecValTok{2}\NormalTok{), }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{),}
+        \AttributeTok{se =} \FunctionTok{sqrt}\NormalTok{(}\DecValTok{1} \SpecialCharTok{/} \FunctionTok{sum}\NormalTok{(}\DecValTok{1} \SpecialCharTok{/}\NormalTok{ (se\_z}\SpecialCharTok{\^{}}\DecValTok{2}\NormalTok{), }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{)),}
         \AttributeTok{n\_seasons =} \FunctionTok{n}\NormalTok{(),}
         \AttributeTok{.groups =} \StringTok{"drop"}
 \NormalTok{    ) }\SpecialCharTok{\%\textgreater{}\%}
@@ -436,19 +469,16 @@ accounts for year-to-year variation while providing stable estimates:
 \NormalTok{        )}
 \NormalTok{    )}
 
-\CommentTok{\# Compute win probability matrix for all pairs (neutral site)}
+\CommentTok{\# Compute win probability matrix (neutral site)}
 \NormalTok{lambda\_vec }\OtherTok{\textless{}{-}} \FunctionTok{setNames}\NormalTok{(team\_abilities\_df}\SpecialCharTok{$}\NormalTok{lambda, team\_abilities\_df}\SpecialCharTok{$}\NormalTok{team)}
 \NormalTok{lambda\_diff }\OtherTok{\textless{}{-}} \FunctionTok{outer}\NormalTok{(}\AttributeTok{X =}\NormalTok{ lambda\_vec, }\AttributeTok{Y =}\NormalTok{ lambda\_vec, }\AttributeTok{FUN =} \StringTok{"{-}"}\NormalTok{)}
 \NormalTok{win\_probs }\OtherTok{\textless{}{-}} \DecValTok{1} \SpecialCharTok{/}\NormalTok{ (}\DecValTok{1} \SpecialCharTok{+} \FunctionTok{exp}\NormalTok{(}\SpecialCharTok{{-}}\DecValTok{1} \SpecialCharTok{*}\NormalTok{ lambda\_diff))}
 \NormalTok{win\_probs }\OtherTok{\textless{}{-}} \FunctionTok{pmin}\NormalTok{(}\FunctionTok{pmax}\NormalTok{(win\_probs, }\FloatTok{1e{-}6}\NormalTok{), }\DecValTok{1} \SpecialCharTok{{-}} \FloatTok{1e{-}6}\NormalTok{) }\CommentTok{\# Numerical stability}
-\FunctionTok{diag}\NormalTok{(win\_probs) }\OtherTok{\textless{}{-}} \ConstantTok{NA} \CommentTok{\# Teams don\textquotesingle{}t play themselves}
+\FunctionTok{diag}\NormalTok{(win\_probs) }\OtherTok{\textless{}{-}} \ConstantTok{NA}
 
 \CommentTok{\# Save results}
-\FunctionTok{saveRDS}\NormalTok{(bt\_model, }\FunctionTok{here}\NormalTok{(}\StringTok{"data"}\NormalTok{, }\StringTok{"processed"}\NormalTok{, }\StringTok{"bt\_model.rds"}\NormalTok{))}
-\FunctionTok{saveRDS}\NormalTok{(}
-\NormalTok{    team\_abilities\_with\_seeds,}
-    \FunctionTok{here}\NormalTok{(}\StringTok{"data"}\NormalTok{, }\StringTok{"processed"}\NormalTok{, }\StringTok{"team\_abilities\_with\_seeds.rds"}\NormalTok{)}
-\NormalTok{)}
+\FunctionTok{saveRDS}\NormalTok{(bt\_model\_season, }\FunctionTok{here}\NormalTok{(}\StringTok{"data"}\NormalTok{, }\StringTok{"processed"}\NormalTok{, }\StringTok{"bt\_model.rds"}\NormalTok{))}
+\FunctionTok{saveRDS}\NormalTok{(team\_abilities\_with\_seeds, }\FunctionTok{here}\NormalTok{(}\StringTok{"data"}\NormalTok{, }\StringTok{"processed"}\NormalTok{, }\StringTok{"team\_abilities\_with\_seeds.rds"}\NormalTok{))}
 \FunctionTok{saveRDS}\NormalTok{(win\_probs, }\FunctionTok{here}\NormalTok{(}\StringTok{"data"}\NormalTok{, }\StringTok{"processed"}\NormalTok{, }\StringTok{"win\_probability\_matrix.rds"}\NormalTok{))}
 \end{Highlighting}
 \end{Shaded}
@@ -488,43 +518,60 @@ ESPN, including scores, dates, and team identifiers.
 
 \begin{Shaded}
 \begin{Highlighting}[]
+\CommentTok{\# From scripts/01\_data\_collection\_UPDATED.R}
 \FunctionTok{suppressPackageStartupMessages}\NormalTok{(\{}
     \FunctionTok{library}\NormalTok{(tidyverse)}
     \FunctionTok{library}\NormalTok{(lubridate)}
     \FunctionTok{library}\NormalTok{(here)}
-    \FunctionTok{library}\NormalTok{(wehoop)}
-    \FunctionTok{library}\NormalTok{(igraph)}
 \NormalTok{\})}
 
-\CommentTok{\# Expanded to include more seasons for robust model estimation}
+\CommentTok{\# Expanded to include more seasons for more robust model estimation}
 \CommentTok{\# Using 2019{-}2024 (5 seasons) {-} skipping 2020 due to COVID disruptions}
 \NormalTok{SEASONS }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\DecValTok{2019}\NormalTok{, }\DecValTok{2021}\NormalTok{, }\DecValTok{2022}\NormalTok{, }\DecValTok{2023}\NormalTok{, }\DecValTok{2024}\NormalTok{)}
 \FunctionTok{set.seed}\NormalTok{(}\DecValTok{479}\NormalTok{)}
 
-\CommentTok{\# Load raw data from wehoop}
-\NormalTok{raw }\OtherTok{\textless{}{-}}\NormalTok{ wehoop}\SpecialCharTok{::}\FunctionTok{load\_wbb\_schedule}\NormalTok{(}\AttributeTok{seasons =}\NormalTok{ SEASONS)}
-\FunctionTok{stopifnot}\NormalTok{(}\FunctionTok{is.data.frame}\NormalTok{(raw), }\FunctionTok{nrow}\NormalTok{(raw) }\SpecialCharTok{\textgreater{}} \DecValTok{0}\NormalTok{)}
+\ControlFlowTok{if}\NormalTok{ (}\SpecialCharTok{!}\FunctionTok{requireNamespace}\NormalTok{(}\StringTok{"wehoop"}\NormalTok{, }\AttributeTok{quietly =} \ConstantTok{TRUE}\NormalTok{)) \{}
+    \FunctionTok{install.packages}\NormalTok{(}\StringTok{"wehoop"}\NormalTok{)}
+\NormalTok{\}}
+\FunctionTok{library}\NormalTok{(wehoop)}
 
 \CommentTok{\# Helper function to pick first available column name}
-\CommentTok{\# (wehoop schema may vary across versions)}
 \NormalTok{pick\_first }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(cands, nm) \{}
 \NormalTok{    hit }\OtherTok{\textless{}{-}} \FunctionTok{intersect}\NormalTok{(cands, nm)}
     \ControlFlowTok{if}\NormalTok{ (}\FunctionTok{length}\NormalTok{(hit)) hit[}\DecValTok{1}\NormalTok{] }\ControlFlowTok{else} \ConstantTok{NA\_character\_}
 \NormalTok{\}}
 
-\CommentTok{\# Map column names flexibly}
+\NormalTok{raw }\OtherTok{\textless{}{-}}\NormalTok{ wehoop}\SpecialCharTok{::}\FunctionTok{load\_wbb\_schedule}\NormalTok{(}\AttributeTok{seasons =}\NormalTok{ SEASONS)}
+\FunctionTok{stopifnot}\NormalTok{(}\FunctionTok{is.data.frame}\NormalTok{(raw), }\FunctionTok{nrow}\NormalTok{(raw) }\SpecialCharTok{\textgreater{}} \DecValTok{0}\NormalTok{)}
+
 \NormalTok{nm }\OtherTok{\textless{}{-}} \FunctionTok{names}\NormalTok{(raw)}
+
+\CommentTok{\# Dates / IDs / season}
 \NormalTok{date\_col }\OtherTok{\textless{}{-}} \FunctionTok{pick\_first}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"game\_date"}\NormalTok{, }\StringTok{"start\_date"}\NormalTok{, }\StringTok{"date"}\NormalTok{), nm)}
 \NormalTok{season\_col }\OtherTok{\textless{}{-}} \FunctionTok{pick\_first}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"season"}\NormalTok{, }\StringTok{"season\_year"}\NormalTok{), nm)}
 \NormalTok{id\_col }\OtherTok{\textless{}{-}} \FunctionTok{pick\_first}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"game\_id"}\NormalTok{, }\StringTok{"id"}\NormalTok{, }\StringTok{"espn\_game\_id"}\NormalTok{), nm)}
-\NormalTok{home\_team\_col }\OtherTok{\textless{}{-}} \FunctionTok{pick\_first}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"home\_display\_name"}\NormalTok{, }\StringTok{"home\_name"}\NormalTok{, }\StringTok{"home\_location"}\NormalTok{), nm)}
-\NormalTok{away\_team\_col }\OtherTok{\textless{}{-}} \FunctionTok{pick\_first}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"away\_display\_name"}\NormalTok{, }\StringTok{"away\_name"}\NormalTok{, }\StringTok{"away\_location"}\NormalTok{), nm)}
-\NormalTok{home\_score\_col }\OtherTok{\textless{}{-}} \FunctionTok{pick\_first}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"home\_score"}\NormalTok{, }\StringTok{"home\_points"}\NormalTok{), nm)}
-\NormalTok{away\_score\_col }\OtherTok{\textless{}{-}} \FunctionTok{pick\_first}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"away\_score"}\NormalTok{, }\StringTok{"away\_points"}\NormalTok{), nm)}
-\NormalTok{neutral\_col }\OtherTok{\textless{}{-}} \FunctionTok{pick\_first}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"neutral\_site"}\NormalTok{, }\StringTok{"neutral"}\NormalTok{), nm)}
-\NormalTok{type\_col }\OtherTok{\textless{}{-}} \FunctionTok{pick\_first}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"season\_type"}\NormalTok{, }\StringTok{"game\_type"}\NormalTok{), nm)}
 
-\CommentTok{\# Transform to standardized format}
+\NormalTok{home\_team\_col }\OtherTok{\textless{}{-}} \FunctionTok{pick\_first}\NormalTok{(}\FunctionTok{c}\NormalTok{(}
+    \StringTok{"home\_display\_name"}\NormalTok{, }\StringTok{"home\_name"}\NormalTok{, }\StringTok{"home\_location"}\NormalTok{, }\StringTok{"home\_short\_display\_name"}\NormalTok{,}
+    \StringTok{"home\_team"}\NormalTok{, }\StringTok{"home\_team\_name"}\NormalTok{, }\StringTok{"home\_team\_display\_name"}
+\NormalTok{), nm)}
+
+\NormalTok{away\_team\_col }\OtherTok{\textless{}{-}} \FunctionTok{pick\_first}\NormalTok{(}\FunctionTok{c}\NormalTok{(}
+    \StringTok{"away\_display\_name"}\NormalTok{, }\StringTok{"away\_name"}\NormalTok{, }\StringTok{"away\_location"}\NormalTok{, }\StringTok{"away\_short\_display\_name"}\NormalTok{,}
+    \StringTok{"away\_team"}\NormalTok{, }\StringTok{"away\_team\_name"}\NormalTok{, }\StringTok{"away\_team\_display\_name"}
+\NormalTok{), nm)}
+
+\NormalTok{home\_score\_col }\OtherTok{\textless{}{-}} \FunctionTok{pick\_first}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"home\_score"}\NormalTok{, }\StringTok{"home\_points"}\NormalTok{, }\StringTok{"home\_team\_score"}\NormalTok{), nm)}
+\NormalTok{away\_score\_col }\OtherTok{\textless{}{-}} \FunctionTok{pick\_first}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"away\_score"}\NormalTok{, }\StringTok{"away\_points"}\NormalTok{, }\StringTok{"away\_team\_score"}\NormalTok{), nm)}
+
+\NormalTok{neutral\_col }\OtherTok{\textless{}{-}} \FunctionTok{pick\_first}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"neutral\_site"}\NormalTok{, }\StringTok{"neutral"}\NormalTok{, }\StringTok{"is\_neutral\_site"}\NormalTok{), nm)}
+\NormalTok{type\_col }\OtherTok{\textless{}{-}} \FunctionTok{pick\_first}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"season\_type"}\NormalTok{, }\StringTok{"game\_type"}\NormalTok{, }\StringTok{"tournament\_type"}\NormalTok{), nm)}
+
+\NormalTok{must\_have }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(date\_col, season\_col, home\_team\_col, away\_team\_col)}
+\ControlFlowTok{if}\NormalTok{ (}\FunctionTok{any}\NormalTok{(}\FunctionTok{is.na}\NormalTok{(must\_have))) \{}
+    \FunctionTok{stop}\NormalTok{(}\StringTok{"Critical columns missing after remapping."}\NormalTok{)}
+\NormalTok{\}}
+
 \NormalTok{games\_combined }\OtherTok{\textless{}{-}}\NormalTok{ raw }\SpecialCharTok{|\textgreater{}}
     \FunctionTok{transmute}\NormalTok{(}
         \AttributeTok{game\_id =} \ControlFlowTok{if}\NormalTok{ (}\SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(id\_col)) }\FunctionTok{as.character}\NormalTok{(.data[[id\_col]]) }\ControlFlowTok{else} \ConstantTok{NA\_character\_}\NormalTok{,}
@@ -544,7 +591,7 @@ ESPN, including scores, dates, and team identifiers.
 \NormalTok{        \},}
         \AttributeTok{neutral\_site =} \ControlFlowTok{if}\NormalTok{ (}\SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(neutral\_col)) \{}
 \NormalTok{            val }\OtherTok{\textless{}{-}}\NormalTok{ .data[[neutral\_col]]}
-            \FunctionTok{as.integer}\NormalTok{(val }\SpecialCharTok{\%in\%} \FunctionTok{c}\NormalTok{(}\ConstantTok{TRUE}\NormalTok{, }\DecValTok{1}\NormalTok{, }\StringTok{"1"}\NormalTok{, }\StringTok{"TRUE"}\NormalTok{))}
+            \FunctionTok{as.integer}\NormalTok{(val }\SpecialCharTok{\%in\%} \FunctionTok{c}\NormalTok{(}\ConstantTok{TRUE}\NormalTok{, }\DecValTok{1}\NormalTok{, }\StringTok{"1"}\NormalTok{, }\StringTok{"TRUE"}\NormalTok{, }\StringTok{"True"}\NormalTok{, }\StringTok{"true"}\NormalTok{))}
 \NormalTok{        \} }\ControlFlowTok{else}\NormalTok{ \{}
             \DecValTok{0}\DataTypeTok{L}
 \NormalTok{        \},}
@@ -559,8 +606,9 @@ filtering} (critical fix), then filter for data quality:
 
 \begin{Shaded}
 \begin{Highlighting}[]
+\CommentTok{\# From scripts/01\_data\_collection\_UPDATED.R (continued)}
+
 \CommentTok{\# ====== D{-}I NORMALIZATION (BEFORE ANY FILTERING) ======}
-\CommentTok{\# This ensures only Division I vs Division I matchups}
 \NormalTok{normalize\_name }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(x) stringr}\SpecialCharTok{::}\FunctionTok{str\_squish}\NormalTok{(stringr}\SpecialCharTok{::}\FunctionTok{str\_to\_lower}\NormalTok{(x))}
 
 \NormalTok{d1\_teams }\OtherTok{\textless{}{-}} \FunctionTok{tryCatch}\NormalTok{(}
@@ -568,42 +616,59 @@ filtering} (critical fix), then filter for data quality:
     \AttributeTok{error =} \ControlFlowTok{function}\NormalTok{(e) }\ConstantTok{NULL}
 \NormalTok{)}
 
-\NormalTok{wbb\_di }\OtherTok{\textless{}{-}}\NormalTok{ d1\_teams }\SpecialCharTok{|\textgreater{}}
-    \FunctionTok{filter}\NormalTok{(}
-        \FunctionTok{is.na}\NormalTok{(classification) }\SpecialCharTok{|} \FunctionTok{str\_detect}\NormalTok{(}\FunctionTok{tolower}\NormalTok{(classification), }\StringTok{"ncaa"}\NormalTok{),}
-        \FunctionTok{is.na}\NormalTok{(division) }\SpecialCharTok{|} \FunctionTok{str\_detect}\NormalTok{(}\FunctionTok{tolower}\NormalTok{(division), }\StringTok{"\^{}(1|i|division i)"}\NormalTok{)}
-\NormalTok{    ) }\SpecialCharTok{|\textgreater{}}
-    \FunctionTok{transmute}\NormalTok{(}\AttributeTok{di\_team =}\NormalTok{ display\_name, }\AttributeTok{di\_key =} \FunctionTok{normalize\_name}\NormalTok{(display\_name)) }\SpecialCharTok{|\textgreater{}}
-    \FunctionTok{distinct}\NormalTok{()}
+\ControlFlowTok{if}\NormalTok{ (}\FunctionTok{is.null}\NormalTok{(d1\_teams) }\SpecialCharTok{||} \SpecialCharTok{!}\StringTok{"team\_id"} \SpecialCharTok{\%in\%} \FunctionTok{names}\NormalTok{(d1\_teams)) \{}
+\NormalTok{    games\_norm }\OtherTok{\textless{}{-}}\NormalTok{ games\_combined }\CommentTok{\# Fallback if teams endpoint unavailable}
+\NormalTok{\} }\ControlFlowTok{else}\NormalTok{ \{}
+\NormalTok{    nm\_t }\OtherTok{\textless{}{-}} \FunctionTok{names}\NormalTok{(d1\_teams)}
+\NormalTok{    name\_col }\OtherTok{\textless{}{-}} \FunctionTok{pick\_first}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"display\_name"}\NormalTok{, }\StringTok{"short\_display\_name"}\NormalTok{, }\StringTok{"name"}\NormalTok{), nm\_t)}
+\NormalTok{    class\_col }\OtherTok{\textless{}{-}} \FunctionTok{pick\_first}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"classification"}\NormalTok{, }\StringTok{"org"}\NormalTok{), nm\_t)}
+\NormalTok{    div\_col }\OtherTok{\textless{}{-}} \FunctionTok{pick\_first}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"division"}\NormalTok{, }\StringTok{"division\_name"}\NormalTok{), nm\_t)}
 
-\CommentTok{\# Apply D{-}I filtering to games\_combined FIRST}
-\NormalTok{games\_norm }\OtherTok{\textless{}{-}}\NormalTok{ games\_combined }\SpecialCharTok{|\textgreater{}}
-    \FunctionTok{mutate}\NormalTok{(}
-        \AttributeTok{home\_key =} \FunctionTok{normalize\_name}\NormalTok{(home\_team),}
-        \AttributeTok{away\_key =} \FunctionTok{normalize\_name}\NormalTok{(away\_team)}
-\NormalTok{    ) }\SpecialCharTok{|\textgreater{}}
-    \FunctionTok{left\_join}\NormalTok{(wbb\_di, }\AttributeTok{by =} \FunctionTok{c}\NormalTok{(}\StringTok{"home\_key"} \OtherTok{=} \StringTok{"di\_key"}\NormalTok{)) }\SpecialCharTok{|\textgreater{}}
-    \FunctionTok{rename}\NormalTok{(}\AttributeTok{home\_di\_team =}\NormalTok{ di\_team) }\SpecialCharTok{|\textgreater{}}
-    \FunctionTok{left\_join}\NormalTok{(wbb\_di, }\AttributeTok{by =} \FunctionTok{c}\NormalTok{(}\StringTok{"away\_key"} \OtherTok{=} \StringTok{"di\_key"}\NormalTok{)) }\SpecialCharTok{|\textgreater{}}
-    \FunctionTok{rename}\NormalTok{(}\AttributeTok{away\_di\_team =}\NormalTok{ di\_team) }\SpecialCharTok{|\textgreater{}}
-    \FunctionTok{filter}\NormalTok{(}\SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(home\_di\_team), }\SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(away\_di\_team)) }\SpecialCharTok{|\textgreater{}}
-    \FunctionTok{mutate}\NormalTok{(}\AttributeTok{home\_team =}\NormalTok{ home\_di\_team, }\AttributeTok{away\_team =}\NormalTok{ away\_di\_team)}
+\NormalTok{    wbb\_di }\OtherTok{\textless{}{-}}\NormalTok{ d1\_teams }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{mutate}\NormalTok{(}
+            \AttributeTok{.team\_name =} \ControlFlowTok{if}\NormalTok{ (}\SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(name\_col)) .data[[name\_col]] }\ControlFlowTok{else} \ConstantTok{NA\_character\_}\NormalTok{,}
+            \AttributeTok{.class =} \ControlFlowTok{if}\NormalTok{ (}\SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(class\_col)) .data[[class\_col]] }\ControlFlowTok{else} \ConstantTok{NA\_character\_}\NormalTok{,}
+            \AttributeTok{.div =} \ControlFlowTok{if}\NormalTok{ (}\SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(div\_col)) .data[[div\_col]] }\ControlFlowTok{else} \ConstantTok{NA\_character\_}
+\NormalTok{        ) }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{filter}\NormalTok{(}
+            \FunctionTok{is.na}\NormalTok{(.class) }\SpecialCharTok{|} \FunctionTok{str\_detect}\NormalTok{(}\FunctionTok{tolower}\NormalTok{(.class), }\StringTok{"ncaa"}\NormalTok{),}
+            \FunctionTok{is.na}\NormalTok{(.div) }\SpecialCharTok{|} \FunctionTok{str\_detect}\NormalTok{(}\FunctionTok{tolower}\NormalTok{(.div), }\StringTok{"\^{}(1|i|division i)"}\NormalTok{)}
+\NormalTok{        ) }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{transmute}\NormalTok{(}\AttributeTok{di\_team =}\NormalTok{ .team\_name, }\AttributeTok{di\_key =} \FunctionTok{normalize\_name}\NormalTok{(.team\_name)) }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{distinct}\NormalTok{() }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{filter}\NormalTok{(}\SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(di\_key), di\_key }\SpecialCharTok{!=} \StringTok{""}\NormalTok{)}
+
+\NormalTok{    games\_norm }\OtherTok{\textless{}{-}}\NormalTok{ games\_combined }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{mutate}\NormalTok{(}
+            \AttributeTok{home\_key =} \FunctionTok{normalize\_name}\NormalTok{(home\_team),}
+            \AttributeTok{away\_key =} \FunctionTok{normalize\_name}\NormalTok{(away\_team)}
+\NormalTok{        ) }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{left\_join}\NormalTok{(wbb\_di, }\AttributeTok{by =} \FunctionTok{c}\NormalTok{(}\StringTok{"home\_key"} \OtherTok{=} \StringTok{"di\_key"}\NormalTok{)) }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{rename}\NormalTok{(}\AttributeTok{home\_di\_team =}\NormalTok{ di\_team) }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{left\_join}\NormalTok{(wbb\_di, }\AttributeTok{by =} \FunctionTok{c}\NormalTok{(}\StringTok{"away\_key"} \OtherTok{=} \StringTok{"di\_key"}\NormalTok{)) }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{rename}\NormalTok{(}\AttributeTok{away\_di\_team =}\NormalTok{ di\_team) }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{filter}\NormalTok{(}\SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(home\_di\_team), }\SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(away\_di\_team)) }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{mutate}\NormalTok{(}\AttributeTok{home\_team =}\NormalTok{ home\_di\_team, }\AttributeTok{away\_team =}\NormalTok{ away\_di\_team) }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\NormalTok{home\_di\_team, }\SpecialCharTok{{-}}\NormalTok{away\_di\_team, }\SpecialCharTok{{-}}\NormalTok{home\_key, }\SpecialCharTok{{-}}\NormalTok{away\_key)}
+\NormalTok{\}}
 
 \CommentTok{\# ====== REGULAR{-}SEASON FILTER (IMPROVED) ======}
-\CommentTok{\# Coerce season\_type and handle both numeric and text}
 \NormalTok{stype }\OtherTok{\textless{}{-}} \FunctionTok{suppressWarnings}\NormalTok{(}\FunctionTok{as.integer}\NormalTok{(games\_norm}\SpecialCharTok{$}\NormalTok{season\_type))}
 
 \ControlFlowTok{if}\NormalTok{ (}\SpecialCharTok{!}\FunctionTok{all}\NormalTok{(}\FunctionTok{is.na}\NormalTok{(stype)) }\SpecialCharTok{\&\&} \FunctionTok{any}\NormalTok{(stype }\SpecialCharTok{==} \DecValTok{2}\NormalTok{, }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{)) \{}
 \NormalTok{    games\_cleaned }\OtherTok{\textless{}{-}}\NormalTok{ games\_norm }\SpecialCharTok{|\textgreater{}} \FunctionTok{filter}\NormalTok{(stype }\SpecialCharTok{==} \DecValTok{2}\NormalTok{)}
 \NormalTok{\} }\ControlFlowTok{else}\NormalTok{ \{}
-    \CommentTok{\# Text or missing: use text matching + date fallback}
 \NormalTok{    stxt }\OtherTok{\textless{}{-}} \FunctionTok{tolower}\NormalTok{(}\FunctionTok{as.character}\NormalTok{(games\_norm}\SpecialCharTok{$}\NormalTok{season\_type))}
+\NormalTok{    stxt[}\FunctionTok{is.na}\NormalTok{(stxt)] }\OtherTok{\textless{}{-}} \StringTok{""}
 \NormalTok{    games\_cleaned }\OtherTok{\textless{}{-}}\NormalTok{ games\_norm }\SpecialCharTok{|\textgreater{}}
-        \FunctionTok{filter}\NormalTok{(}\FunctionTok{str\_detect}\NormalTok{(stxt, }\StringTok{"regular"}\NormalTok{) }\SpecialCharTok{|}
-\NormalTok{            (}\SpecialCharTok{!}\FunctionTok{str\_detect}\NormalTok{(stxt, }\StringTok{"post|tourn|conf"}\NormalTok{) }\SpecialCharTok{\&} \FunctionTok{month}\NormalTok{(game\_date) }\SpecialCharTok{\textless{}=} \DecValTok{2}\NormalTok{))}
+        \FunctionTok{filter}\NormalTok{(}
+\NormalTok{            stringr}\SpecialCharTok{::}\FunctionTok{str\_detect}\NormalTok{(stxt, }\StringTok{"regular|season}\SpecialCharTok{\textbackslash{}\textbackslash{}}\StringTok{b"}\NormalTok{) }\SpecialCharTok{|}
+\NormalTok{                (}\SpecialCharTok{!}\NormalTok{stringr}\SpecialCharTok{::}\FunctionTok{str\_detect}\NormalTok{(stxt, }\StringTok{"post|tourn|conf|champ"}\NormalTok{) }\SpecialCharTok{\&}
+\NormalTok{                    lubridate}\SpecialCharTok{::}\FunctionTok{month}\NormalTok{(game\_date) }\SpecialCharTok{\textless{}=} \DecValTok{2}\NormalTok{)}
+\NormalTok{        )}
 \NormalTok{\}}
 
-\CommentTok{\# Keep only completed games with valid scores, no ties}
+\CommentTok{\# Completed games with valid scores, no ties}
 \NormalTok{games\_cleaned }\OtherTok{\textless{}{-}}\NormalTok{ games\_cleaned }\SpecialCharTok{|\textgreater{}}
     \FunctionTok{filter}\NormalTok{(}\SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(home\_score), }\SpecialCharTok{!}\FunctionTok{is.na}\NormalTok{(away\_score)) }\SpecialCharTok{|\textgreater{}}
     \FunctionTok{filter}\NormalTok{(home\_score }\SpecialCharTok{\textgreater{}=} \DecValTok{0}\NormalTok{, away\_score }\SpecialCharTok{\textgreater{}=} \DecValTok{0}\NormalTok{) }\SpecialCharTok{|\textgreater{}}
@@ -614,8 +679,10 @@ filtering} (critical fix), then filter for data quality:
         \AttributeTok{away\_winner =} \DecValTok{1}\DataTypeTok{L} \SpecialCharTok{{-}}\NormalTok{ home\_winner}
 \NormalTok{    )}
 
-\CommentTok{\# Keep only largest connected component of matchup graph}
-\CommentTok{\# This ensures all teams are comparable through transitive relationships}
+\CommentTok{\# Keep only largest connected component}
+\ControlFlowTok{if}\NormalTok{ (}\SpecialCharTok{!}\FunctionTok{requireNamespace}\NormalTok{(}\StringTok{"igraph"}\NormalTok{, }\AttributeTok{quietly =} \ConstantTok{TRUE}\NormalTok{)) }\FunctionTok{install.packages}\NormalTok{(}\StringTok{"igraph"}\NormalTok{)}
+\FunctionTok{library}\NormalTok{(igraph)}
+
 \NormalTok{g }\OtherTok{\textless{}{-}} \FunctionTok{graph\_from\_data\_frame}\NormalTok{(}
 \NormalTok{    games\_cleaned }\SpecialCharTok{|\textgreater{}} \FunctionTok{distinct}\NormalTok{(home\_team, away\_team),}
     \AttributeTok{directed =} \ConstantTok{FALSE}
@@ -627,7 +694,7 @@ filtering} (critical fix), then filter for data quality:
 \NormalTok{games\_cleaned }\OtherTok{\textless{}{-}}\NormalTok{ games\_cleaned }\SpecialCharTok{|\textgreater{}}
     \FunctionTok{filter}\NormalTok{(home\_team }\SpecialCharTok{\%in\%}\NormalTok{ teams\_in\_cc, away\_team }\SpecialCharTok{\%in\%}\NormalTok{ teams\_in\_cc)}
 
-\CommentTok{\# Filter teams with minimum 8 games (ensures stable estimates)}
+\CommentTok{\# Filter teams with minimum 8 games}
 \NormalTok{team\_game\_counts }\OtherTok{\textless{}{-}} \FunctionTok{bind\_rows}\NormalTok{(}
 \NormalTok{    games\_cleaned }\SpecialCharTok{|\textgreater{}} \FunctionTok{count}\NormalTok{(}\AttributeTok{team =}\NormalTok{ home\_team, }\AttributeTok{name =} \StringTok{"n"}\NormalTok{),}
 \NormalTok{    games\_cleaned }\SpecialCharTok{|\textgreater{}} \FunctionTok{count}\NormalTok{(}\AttributeTok{team =}\NormalTok{ away\_team, }\AttributeTok{name =} \StringTok{"n"}\NormalTok{)}
@@ -648,7 +715,9 @@ Finally, we prepare the data structure for Bradley-Terry model fitting:
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\CommentTok{\# Create Bradley{-}Terry pair{-}wise comparison data}
+\CommentTok{\# From scripts/01\_data\_collection\_UPDATED.R (continued)}
+
+\CommentTok{\# Build Bradley{-}Terry pair table}
 \NormalTok{unique\_teams }\OtherTok{\textless{}{-}} \FunctionTok{sort}\NormalTok{(}\FunctionTok{unique}\NormalTok{(}\FunctionTok{c}\NormalTok{(games\_cleaned}\SpecialCharTok{$}\NormalTok{home\_team, games\_cleaned}\SpecialCharTok{$}\NormalTok{away\_team)))}
 
 \NormalTok{bt\_data }\OtherTok{\textless{}{-}}\NormalTok{ games\_cleaned }\SpecialCharTok{|\textgreater{}}
@@ -666,10 +735,41 @@ Finally, we prepare the data structure for Bradley-Terry model fitting:
         \AttributeTok{away.team =} \FunctionTok{factor}\NormalTok{(away.team, }\AttributeTok{levels =}\NormalTok{ unique\_teams)}
 \NormalTok{    )}
 
+\CommentTok{\# TOURNAMENT SEEDS: Real NCAA Data vs Model{-}Based}
+\NormalTok{ncaa\_seed\_file }\OtherTok{\textless{}{-}} \FunctionTok{here}\NormalTok{(}\StringTok{"data"}\NormalTok{, }\StringTok{"raw"}\NormalTok{, }\StringTok{"ncaa\_seeds\_historical.csv"}\NormalTok{)}
+
+\ControlFlowTok{if}\NormalTok{ (}\FunctionTok{file.exists}\NormalTok{(ncaa\_seed\_file)) \{}
+    \CommentTok{\# Use real NCAA tournament seeds if available}
+\NormalTok{    tournament\_seeds }\OtherTok{\textless{}{-}} \FunctionTok{read\_csv}\NormalTok{(ncaa\_seed\_file, }\AttributeTok{show\_col\_types =} \ConstantTok{FALSE}\NormalTok{) }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{filter}\NormalTok{(season }\SpecialCharTok{==} \FunctionTok{max}\NormalTok{(SEASONS)) }\SpecialCharTok{|\textgreater{}} \CommentTok{\# Most recent season}
+        \FunctionTok{select}\NormalTok{(team, }\AttributeTok{seed =}\NormalTok{ ncaa\_seed, region) }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{mutate}\NormalTok{(}\AttributeTok{team =} \FunctionTok{str\_trim}\NormalTok{(team), }\AttributeTok{season =} \FunctionTok{max}\NormalTok{(SEASONS)) }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{filter}\NormalTok{(team }\SpecialCharTok{\%in\%}\NormalTok{ unique\_teams)}
+\NormalTok{\} }\ControlFlowTok{else}\NormalTok{ \{}
+    \CommentTok{\# Fallback: Model{-}based placeholder seeds}
+\NormalTok{    team\_perf }\OtherTok{\textless{}{-}}\NormalTok{ games\_cleaned }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{transmute}\NormalTok{(}\AttributeTok{team =}\NormalTok{ home\_team, }\AttributeTok{win =}\NormalTok{ home\_winner) }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{bind\_rows}\NormalTok{(games\_cleaned }\SpecialCharTok{|\textgreater{}} \FunctionTok{transmute}\NormalTok{(}\AttributeTok{team =}\NormalTok{ away\_team, }\AttributeTok{win =}\NormalTok{ away\_winner)) }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{group\_by}\NormalTok{(team) }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{summarise}\NormalTok{(}\AttributeTok{games =} \FunctionTok{n}\NormalTok{(), }\AttributeTok{wins =} \FunctionTok{sum}\NormalTok{(win), }\AttributeTok{win\_pct =}\NormalTok{ wins }\SpecialCharTok{/}\NormalTok{ games, }\AttributeTok{.groups =} \StringTok{"drop"}\NormalTok{) }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{arrange}\NormalTok{(}\FunctionTok{desc}\NormalTok{(win\_pct)) }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{slice\_head}\NormalTok{(}\AttributeTok{n =} \DecValTok{64}\NormalTok{)}
+
+\NormalTok{    regions }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\StringTok{"Albany"}\NormalTok{, }\StringTok{"Portland"}\NormalTok{, }\StringTok{"Spokane"}\NormalTok{, }\StringTok{"Wichita"}\NormalTok{)}
+\NormalTok{    tournament\_seeds }\OtherTok{\textless{}{-}}\NormalTok{ team\_perf }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{mutate}\NormalTok{(}
+            \AttributeTok{overall\_rank =} \FunctionTok{row\_number}\NormalTok{(),}
+            \AttributeTok{seed =}\NormalTok{ ((overall\_rank }\SpecialCharTok{{-}} \DecValTok{1}\NormalTok{) }\SpecialCharTok{\%\%} \DecValTok{16}\NormalTok{) }\SpecialCharTok{+} \DecValTok{1}\NormalTok{,}
+            \AttributeTok{region =}\NormalTok{ regions[((overall\_rank }\SpecialCharTok{{-}} \DecValTok{1}\NormalTok{) }\SpecialCharTok{\%/\%} \DecValTok{16}\NormalTok{) }\SpecialCharTok{+} \DecValTok{1}\NormalTok{]}
+\NormalTok{        ) }\SpecialCharTok{|\textgreater{}}
+        \FunctionTok{select}\NormalTok{(team, seed, region)}
+\NormalTok{\}}
+
 \CommentTok{\# Save processed data}
 \FunctionTok{dir.create}\NormalTok{(}\FunctionTok{here}\NormalTok{(}\StringTok{"data"}\NormalTok{, }\StringTok{"processed"}\NormalTok{), }\AttributeTok{recursive =} \ConstantTok{TRUE}\NormalTok{, }\AttributeTok{showWarnings =} \ConstantTok{FALSE}\NormalTok{)}
 \FunctionTok{saveRDS}\NormalTok{(games\_cleaned, }\FunctionTok{here}\NormalTok{(}\StringTok{"data"}\NormalTok{, }\StringTok{"processed"}\NormalTok{, }\StringTok{"games\_cleaned.rds"}\NormalTok{))}
 \FunctionTok{saveRDS}\NormalTok{(bt\_data, }\FunctionTok{here}\NormalTok{(}\StringTok{"data"}\NormalTok{, }\StringTok{"processed"}\NormalTok{, }\StringTok{"bt\_data.rds"}\NormalTok{))}
+\FunctionTok{saveRDS}\NormalTok{(tournament\_seeds, }\FunctionTok{here}\NormalTok{(}\StringTok{"data"}\NormalTok{, }\StringTok{"processed"}\NormalTok{, }\StringTok{"tournament\_seeds.rds"}\NormalTok{))}
 \end{Highlighting}
 \end{Shaded}
 
@@ -1086,17 +1186,17 @@ determines seeds) correlates strongly with model-estimated strength.
 \toprule
 Team & Seed & Region & Lambda & Std. Error\\
 \midrule
-Stanford Cardinal & 4 & Wichita & 0.731 & 0.071\\
-South Carolina Gamecocks & 2 & Albany & 0.710 & 0.077\\
-NC State Wolfpack & 6 & Albany & 0.708 & 0.070\\
-Louisville Cardinals & 10 & Albany & 0.628 & 0.067\\
-Texas Longhorns & 2 & Albany & 0.603 & 0.065\\
+Stanford Cardinal & 2 & Portland & 0.731 & 0.071\\
+South Carolina Gamecocks & 1 & Portland & 0.710 & 0.077\\
+Louisville Cardinals & 5 & Albany & 0.628 & 0.067\\
+Texas Longhorns & 1 & Wichita & 0.603 & 0.065\\
+Baylor Bears & 5 & Portland & 0.600 & 0.066\\
 \addlinespace
-Baylor Bears & 7 & Spokane & 0.600 & 0.066\\
-Iowa State Cyclones & 15 & Spokane & 0.594 & 0.065\\
-UConn Huskies & 3 & Spokane & 0.593 & 0.066\\
-Iowa Hawkeyes & 11 & Spokane & 0.587 & 0.064\\
-Maryland Terrapins & 14 & Albany & 0.579 & 0.065\\
+Iowa State Cyclones & 8 & Albany & 0.594 & 0.065\\
+UConn Huskies & 2 & Albany & 0.593 & 0.066\\
+Iowa Hawkeyes & 1 & Albany & 0.587 & 0.064\\
+Maryland Terrapins & 6 & Albany & 0.579 & 0.065\\
+Indiana Hoosiers & 9 & Wichita & 0.544 & 0.063\\
 \bottomrule
 \end{longtable}
 
@@ -1104,17 +1204,27 @@ All top-10 teams are seeded 1-4, confirming that the selection
 committee's seeding aligns with regular season strength. The standard
 errors (SE) are relatively small, indicating precise strength estimates.
 
-\subsubsection{Strength Across All Tournament
-Teams}\label{strength-across-all-tournament-teams}
+\subsubsection{Within-Seed Variability and Upset
+Potential}\label{within-seed-variability-and-upset-potential}
+
+Not all teams with the same seed are equally strong. Understanding this
+variability is crucial for identifying upset candidates.
 
 \begin{figure}
 
-{\centering \includegraphics[width=66.67in]{../results/figures/02_all_team_strengths} 
+{\centering \includegraphics[width=55.56in]{../results/figures/10_upset_potential} 
 
 }
 
-\caption{Bradley-Terry strength estimates for all 64 tournament teams}\label{fig:all-teams-plot}
+\caption{Team strength variability within 8-12 seeds. Greater variability indicates higher upset potential—some teams are much stronger or weaker than their seed suggests.}\label{fig:upset-potential-plot}
 \end{figure}
+
+The figure above shows that seed 11 has particularly high variability,
+meaning some 11-seeds are much stronger than average, while others are
+weaker. For example, the strongest 11-seed (Iowa Hawkeyes) has a λ value
+of 0.59, while the weakest (Maine Black Bears) has a λ near zero. This
+explains why tournament outcomes can vary dramatically even for teams
+with the same seed.
 
 \subsection{3.2 First Round Performance (8-12
 Seeds)}\label{first-round-performance-8-12-seeds}
@@ -1133,11 +1243,11 @@ Seeds)}\label{first-round-performance-8-12-seeds}
 \toprule
 Seed & N Teams & Avg Win Prob & Expected Wins\\
 \midrule
-8 & 4 & 48.7\% & 1.95\\
-9 & 4 & 43.4\% & 1.74\\
-10 & 4 & 42.5\% & 1.70\\
-11 & 4 & 42.5\% & 1.70\\
-12 & 4 & 43.9\% & 1.76\\
+8 & 4 & 48.0\% & 1.92\\
+9 & 4 & 44.7\% & 1.79\\
+10 & 4 & 45.2\% & 1.81\\
+11 & 4 & 40.8\% & 1.63\\
+12 & 4 & 33.9\% & 1.35\\
 \bottomrule
 \end{longtable}
 
@@ -1162,17 +1272,27 @@ Seed & N Teams & Avg Win Prob & Expected Wins\\
 Collectively, we expect about \textbf{9-10 of the 20 teams seeded 8-12
 to win their first-round game}.
 
-\subsection{3.3 Research Question 1: Expected
-Advancement}\label{research-question-1-expected-advancement}
+\subsubsection{Key Matchup Win
+Probabilities}\label{key-matchup-win-probabilities}
+
+Understanding specific matchup probabilities helps bracket builders
+identify which mid-tier seeds have the best chances:
 
 \begin{figure}
 
-{\centering \includegraphics[width=66.67in]{../results/figures/04_expected_advancement} 
+{\centering \includegraphics[width=55.56in]{../results/figures/11_key_matchups} 
 
 }
 
-\caption{Expected number of 8-12 seeds advancing by round}\label{fig:advancement-plot}
+\caption{Win probabilities for 8-12 seeds in typical first-round matchups. The 8 vs 9 and 9 vs 8 matchups are nearly even, while 12 seeds face much longer odds against 5 seeds.}\label{fig:key-matchups-plot}
 \end{figure}
+
+This visualization reveals which matchups favor the mid-tier seed. Note
+that 8-seeds and 9-seeds have nearly 50-50 odds against each other,
+making these the most unpredictable first-round games.
+
+\subsection{3.3 Research Question 1: Expected
+Advancement}\label{research-question-1-expected-advancement}
 
 \begin{figure}
 
@@ -1186,17 +1306,24 @@ Advancement}\label{research-question-1-expected-advancement}
 \subsubsection{Answer to Research Question
 1}\label{answer-to-research-question-1}
 
-\textbf{We expect approximately 3.75 of the 8-12 seeds to advance to the
+\textbf{We expect approximately 2.36 of the 8-12 seeds to advance to the
 Sweet 16} in a typical tournament.
 
 \begin{itemize}
 \tightlist
 \item
-  \textbf{Analytical calculation:} 1.72 teams
+  \textbf{Simulation mean:} 2.36 teams (from 5,000 simulations)
 \item
-  \textbf{Simulation mean:} 1.68 teams (from 5,000 simulations)
+  \textbf{Typical range:} 0-7 teams (full range), 1-3 teams (67\% of
+  simulations)
 \item
-  \textbf{Typical range:} 0-4 teams (95\% of simulations)
+  \textbf{Most common outcomes:} 2 teams (28.6\%), 3 teams (27.3\%), 1
+  team (16.7\%)
+\item
+  \textbf{Note:} A seed-level analytical calculation gives 3.75 teams,
+  but this overestimates because it uses average probabilities and
+  doesn't account for the wide variation in team strength within seed
+  groups (some 8-12 seeds have near-zero λ values)
 \end{itemize}
 
 \begin{longtable}[t]{rrlll}
@@ -1204,11 +1331,11 @@ Sweet 16} in a typical tournament.
 \toprule
 Seed & N Teams & P(Round 2 Win \&\#124; Round 1 Win) & P(Sweet 16) & Expected in Sweet 16\\
 \midrule
-8 & 4 & 44.9\% & 21.9\% & 0.88\\
-9 & 4 & 41.3\% & 18.1\% & 0.73\\
-10 & 4 & 39.8\% & 17.4\% & 0.70\\
-11 & 4 & 45.3\% & 19.6\% & 0.78\\
-12 & 4 & 37.7\% & 16.7\% & 0.67\\
+8 & 4 & 43.8\% & 21.1\% & 0.84\\
+9 & 4 & 41.8\% & 18.8\% & 0.75\\
+10 & 4 & 37.6\% & 17.2\% & 0.69\\
+11 & 4 & 42.2\% & 17.4\% & 0.70\\
+12 & 4 & 36.5\% & 12.4\% & 0.50\\
 \bottomrule
 \end{longtable}
 
@@ -1247,13 +1374,13 @@ Probabilities}\label{research-question-2-conditional-probabilities}
 \begin{itemize}
 \tightlist
 \item
-  Probability of reaching \textbf{Elite 8}: 48.6\%
+  Probability of reaching \textbf{Elite 8}: 45.0\%
 \item
-  Probability of reaching \textbf{Final Four}: 18.1\%
+  Probability of reaching \textbf{Final Four}: 15.3\%
 \item
-  Probability of reaching \textbf{Finals}: 6.8\%
+  Probability of reaching \textbf{Finals}: 5.3\%
 \item
-  Probability of \textbf{winning championship}: 2.6\%
+  Probability of \textbf{winning championship}: 1.9\%
 \end{itemize}
 
 \begin{longtable}[t]{lllll}
@@ -1261,11 +1388,11 @@ Probabilities}\label{research-question-2-conditional-probabilities}
 \toprule
 Seed & P(Elite 8 \&\#124; Sweet 16) & P(Final Four \&\#124; Sweet 16) & P(Finals \&\#124; Sweet 16) & P(Champion \&\#124; Sweet 16)\\
 \midrule
-800.0\% & 47.7\% & 17.1\% & 6.1\% & 2.2\%\\
-900.0\% & 45.5\% & 15.5\% & 5.3\% & 1.9\%\\
-1000.0\% & 46.9\% & 16.9\% & 6.3\% & 2.4\%\\
-1100.0\% & 51.9\% & 20.9\% & 8.5\% & 3.5\%\\
-1200.0\% & 44.9\% & 15.1\% & 5.1\% & 1.8\%\\
+800.0\% & 49.0\% & 18.1\% & 6.7\% & 2.5\%\\
+900.0\% & 47.0\% & 16.6\% & 5.9\% & 2.1\%\\
+1000.0\% & 43.2\% & 13.9\% & 4.6\% & 1.5\%\\
+1100.0\% & 42.8\% & 13.7\% & 4.5\% & 1.5\%\\
+1200.0\% & 36.8\% & 9.8\% & 2.6\% & 0.7\%\\
 \bottomrule
 \end{longtable}
 
@@ -1280,11 +1407,14 @@ Seed & P(Elite 8 \&\#124; Sweet 16) & P(Final Four \&\#124; Sweet 16) & P(Finals
   However, subsequent rounds still present formidable challenges
   (typically 1-3 seeds)
 \item
-  Only about 1 in 27 teams (3.7\%) that reach the Sweet 16 go on to win
-  the championship
+  Only about \textbf{1 in 38 teams (2.6\%)} that reach the Sweet 16 go
+  on to win the championship
 \item
-  The conditional probabilities are higher for 8-9 seeds than 10-12
-  seeds, reflecting their slightly stronger regular season performance
+  Nearly half (48.6\%) reach the Elite 8, showing they remain
+  competitive once they've proven themselves
+\item
+  The conditional probabilities vary by seed (8-9 seeds slightly
+  stronger than 10-12 seeds overall)
 \end{itemize}
 
 \subsection{3.5 Monte Carlo Simulation
@@ -1340,141 +1470,96 @@ Team}\label{sweet-16-probabilities-by-team}
 \toprule
 Team & Seed & Region & P(Sweet 16) & P(Elite 8) & P(Final Four)\\
 \midrule
-Louisville Cardinals & 1000.0\% & Albany & 17.7\% & 9.4\% & 5.0\%\\
-Iowa Hawkeyes & 1100.0\% & Spokane & 17.1\% & 9.9\% & 5.5\%\\
-Utah Utes & 1200.0\% & Wichita & 14.9\% & 7.1\% & 3.6\%\\
-Arizona Wildcats & 800.0\% & Wichita & 14.2\% & 7.4\% & 3.9\%\\
-South Florida Bulls & 900.0\% & Portland & 12.1\% & 6.4\% & 3.2\%\\
+Iowa State Cyclones & 800.0\% & Albany & 17.2\% & 9.4\% & 5.1\%\\
+Indiana Hoosiers & 900.0\% & Wichita & 16.8\% & 8.8\% & 4.6\%\\
+Gonzaga Bulldogs & 1100.0\% & Spokane & 15.6\% & 9.0\% & 4.9\%\\
+Arizona Wildcats & 800.0\% & Wichita & 15.4\% & 8.3\% & 4.3\%\\
+West Virginia Mountaineers & 800.0\% & Spokane & 14.6\% & 7.2\% & 3.5\%\\
+\addlinespace
+Florida Gators & 1000.0\% & Spokane & 14.1\% & 6.7\% & 3.4\%\\
+Marquette Golden Eagles & 1000.0\% & Wichita & 13.3\% & 6.9\% & 3.8\%\\
+Florida State Seminoles & 800.0\% & Portland & 12.4\% & 6.1\% & 3.2\%\\
+Villanova Wildcats & 900.0\% & Portland & 12.2\% & 5.6\% & 2.7\%\\
+Middle Tennessee Blue Raiders & 1000.0\% & Portland & 11.5\% & 5.5\% & 2.4\%\\
+\addlinespace
+Washington Huskies & 900.0\% & Spokane & 10.4\% & 5.2\% & 2.3\%\\
+South Florida Bulls & 900.0\% & Albany & 10.3\% & 4.7\% & 2.2\%\\
+UNLV Lady Rebels & 1100.0\% & Wichita & 9.4\% & 4.4\% & 2.0\%\\
+Bowling Green Falcons & 1200.0\% & Spokane & 9.2\% & 4.0\% & 1.6\%\\
+Drake Bulldogs & 1100.0\% & Albany & 8.5\% & 4.0\% & 1.9\%\\
+\addlinespace
+Richmond Spiders & 1000.0\% & Albany & 7.3\% & 2.9\% & 1.1\%\\
+Princeton Tigers & 1100.0\% & Portland & 6.6\% & 2.6\% & 1.1\%\\
+Cal State Northridge Matadors & 1200.0\% & Wichita & 5.9\% & 2.5\% & 1.0\%\\
+Holy Cross Crusaders & 1200.0\% & Albany & 5.9\% & 2.3\% & 1.0\%\\
+High Point Panthers & 1200.0\% & Portland & 4.2\% & 1.4\% & 0.3\%\\
 \bottomrule
 \end{longtable}
 
 \subsubsection{Key Findings}\label{key-findings}
 
+\subsubsection{Key Findings}\label{key-findings-1}
+
 \begin{itemize}
 \tightlist
 \item
-  \textbf{Stanford Cardinal (11-seed)} has the highest Sweet 16
-  probability at \textbf{62.5\%}---unusually high for an 11-seed
+  \textbf{Iowa State Cyclones (8-seed)} has the highest Sweet 16
+  probability at \textbf{17.2\%}
 \item
-  \textbf{Indiana Hoosiers (8-seed)} follows with \textbf{48.5\%}
-  probability
+  \textbf{Indiana Hoosiers (9-seed)} follows with \textbf{16.8\%}
 \item
-  \textbf{Michigan Wolverines (8-seed)} at \textbf{47.8\%}
+  \textbf{Gonzaga Bulldogs (11-seed)} at \textbf{15.6\%}
 \item
-  Substantial within-seed variation exists: not all 8-seeds are
-  equivalent
+  Substantial within-seed variation exists: not all teams with the same
+  seed are equivalent
 \end{itemize}
 
-\subsubsection{Round-by-Round
-Progression}\label{round-by-round-progression}
-
-\begin{figure}
-
-{\centering \includegraphics[width=45.83in]{../results/figures/10_round_by_round_progression} 
-
-}
-
-\caption{Round-by-round progression for top 8-12 seeds}\label{fig:progression-plot}
-\end{figure}
-
-The chart above shows how the top five 8-12 seeds by Sweet 16
-probability progress through each tournament round. Note the steep
-decline after the Sweet 16, as these teams face increasingly difficult
-opponents.
-
-\subsubsection{Comprehensive Probability
-Heatmap}\label{comprehensive-probability-heatmap}
-
-\begin{figure}
-
-{\centering \includegraphics[width=41.67in]{../results/figures/11_probability_heatmap} 
-
-}
-
-\caption{Heatmap of all 8-12 seed probabilities by round}\label{fig:probability-heatmap}
-\end{figure}
-
-This heatmap visualizes all 8-12 seed teams' probabilities across
-tournament rounds, showing both seed-level patterns and individual team
-variation.
+The top performers show that regular season strength translates directly
+to tournament opportunity, with the strongest 8-12 seeds achieving
+probabilities comparable to higher-seeded teams.
 
 \subsection{3.7 Historical Context: 2023-2024
 Results}\label{historical-context-2023-2024-results}
 
-\begin{figure}
-
-{\centering \includegraphics[width=41.67in]{../results/figures/12_expected_vs_observed} 
-
-}
-
-\caption{Model predictions vs. observed 2023-2024 results}\label{fig:historical-context-plot}
-\end{figure}
-
-Our model predicts approximately \textbf{1.72 8-12 seeds} should reach
-the Sweet 16 on average. However, in both 2023 and 2024, \textbf{zero
-8-12 seeds} reached the Sweet 16.
+Our model predicts approximately \textbf{2.36 teams seeded 8-12} should
+reach the Sweet 16 on average. However, in both 2023 and 2024,
+\textbf{zero 8-12 seeds} reached the Sweet 16.
 
 \textbf{Statistical Context:}
 
 \begin{itemize}
 \tightlist
 \item
-  Expected number of 8-12 seeds in Sweet 16: \textbf{1.72}
+  Expected number of 8-12 seeds in Sweet 16: \textbf{2.36} (simulation
+  mean)
 \item
-  Probability of zero 8-12 seeds reaching Sweet 16: \textbf{17.9\%}
+  Probability of zero 8-12 seeds reaching Sweet 16: \textbf{5.94\%}
 \item
-  \textbf{Interpretation:} Roughly a \textbf{1-in-6 chance}---unusual
-  but not unprecedented
+  \textbf{Interpretation:} About a \textbf{1-in-17 chance}---genuinely
+  unusual
 \end{itemize}
 
-This suggests the 2023-2024 results were somewhat unusual but
-\textbf{not impossible} - such outcomes can occur due to:
+This suggests the 2023-2024 results were \textbf{statistically unusual}
+- such outcomes occur, but infrequently. Possible explanations include:
 
 \begin{itemize}
 \tightlist
 \item
-  Random variation (bracket ``busts'')
+  Random variation inherent in single-elimination tournaments
 \item
-  Particularly strong performances by top seeds
+  Particularly strong performances by top seeds in those years
+\item
+  The specific 8-12 seeds in 2023-2024 may have been relatively weaker
 \item
   Injuries or other factors not captured in regular season data
 \end{itemize}
 
-\subsubsection{Spotlight: Stanford
-Cardinal}\label{spotlight-stanford-cardinal}
-
-\begin{figure}
-
-{\centering \includegraphics[width=41.67in]{../results/figures/13_stanford_spotlight} 
-
-}
-
-\caption{Stanford Cardinal tournament probabilities}\label{fig:stanford-spotlight}
-\end{figure}
-
-As an example of individual team analysis, Stanford Cardinal (11-seed,
-Spokane Region) shows:
-
-\begin{itemize}
-\tightlist
-\item
-  \textbf{81.0\%} chance of winning Round of 64
-\item
-  \textbf{70.8\%} chance of reaching Round of 32
-\item
-  \textbf{62.5\%} chance of reaching Sweet 16
-\item
-  \textbf{15.2\%} chance of reaching Elite 8
-\item
-  \textbf{4.6\%} chance of reaching Final Four
-\end{itemize}
-
-Despite being an 11-seed, Stanford's strong regular season performance
-(λ = 5.37) gives them elite-8-seed-level probabilities in the early
-rounds. Stanford's case illustrates why individual team analysis
-matters: despite being seeded 11th, their Bradley-Terry strength
-estimate exceeds many 8-9 seeds, resulting in substantially higher
-advancement probabilities.
+\textbf{Back-to-back occurrence (2023 AND 2024):} The probability of
+zero mid-tier seeds advancing in consecutive tournaments is
+approximately \textbf{0.35\%} (5.94\% × 5.94\%), or about
+\textbf{1-in-280}. This is genuinely rare and represents a notable
+statistical anomaly. While not impossible, this level of top-seed
+dominance is historically uncommon and unlikely to persist.
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
@@ -1487,8 +1572,9 @@ advancement probabilities.
 \begin{enumerate}
 \def\labelenumi{\arabic{enumi}.}
 \item
-  \textbf{Expected Sweet 16 Advancement:} Approximately 1.72 teams
-  seeded 8-12 reach the Sweet 16 in a typical tournament (range: 0-4)
+  \textbf{Expected Sweet 16 Advancement:} Approximately 2.36 teams
+  seeded 8-12 reach the Sweet 16 in a typical tournament (range: 0-7,
+  with 1-3 teams in 67\% of simulations)
 \item
   \textbf{Conditional Deep Runs:} An 8-12 seed that reaches the Sweet 16
   has:
@@ -1496,17 +1582,19 @@ advancement probabilities.
   \begin{itemize}
   \tightlist
   \item
-    45.7\% chance of Elite 8
+    48.6\% chance of Elite 8
   \item
-    18.7\% chance of Final Four
+    18.1\% chance of Final Four
   \item
-    8.8\% chance of Championship game
+    6.8\% chance of Championship game
   \item
-    3.7\% chance of winning it all
+    2.6\% chance of winning it all (about 1-in-38)
   \end{itemize}
 \item
-  \textbf{Model Validation:} Strong agreement between analytical
-  calculations and Monte Carlo simulations confirms model robustness
+  \textbf{Model Insights:} Simulation-based estimates (2.36 teams) are
+  more reliable than seed-level analytical calculations (3.75 teams)
+  because simulations account for wide variation in individual team
+  strength within seed groups
 \end{enumerate}
 
 \subsubsection{Individual-Level
@@ -1523,14 +1611,22 @@ Insights}\label{individual-level-insights}
   \begin{itemize}
   \tightlist
   \item
-    Stanford (11-seed): 62.5\% Sweet 16 probability
+    Top 8-12 seed teams can achieve \textasciitilde18\% Sweet 16
+    probability
   \item
-    Some 12-seeds: \textless20\% Sweet 16 probability
+    Weakest 8-12 seed teams have near-zero probability (some λ values
+    approach zero or negative)
+  \item
+    Regular season performance (λ values) explains these differences
+  \item
+    The gap between strongest and weakest within each seed is
+    substantial
   \end{itemize}
 \item
   \textbf{Historical Contextualization:} The 2023-2024 outcome (zero
-  8-12 seeds in Sweet 16) has 17.9\% probability---unusual but not
-  shocking
+  8-12 seeds in Sweet 16) has 5.94\% probability---genuinely unusual,
+  occurring about once every 17 years. Back-to-back occurrence is
+  extremely rare (0.35\%, or 1-in-280)
 \end{enumerate}
 
 \subsection{4.2 Interpretation and
@@ -1541,14 +1637,17 @@ Implications}\label{interpretation-and-implications}
 \begin{itemize}
 \tightlist
 \item
-  \textbf{Don't Over-Predict Upsets:} Expect only 1-2 mid-tier seeds to
-  reach Sweet 16, not 4-5
+  \textbf{Don't Over-Predict Upsets:} Expect 2-3 mid-tier seeds to reach
+  Sweet 16, not 5-6
 \item
   \textbf{Use Team-Specific Data:} Look beyond seed numbers to regular
-  season strength metrics
+  season strength metrics (λ values)
 \item
-  \textbf{Identify Cinderella Candidates:} Teams like Stanford with high
-  λ values despite lower seeds are prime upset picks
+  \textbf{Identify Cinderella Candidates:} Teams with high λ values
+  despite mid-tier seeds (10-12) are prime upset picks
+\item
+  \textbf{Be Realistic:} The strongest 8-12 seeds rarely exceed 20\%
+  Sweet 16 probability
 \end{itemize}
 
 \subsubsection{For Sports Media and
@@ -1558,13 +1657,17 @@ Fans}\label{for-sports-media-and-fans}
 \tightlist
 \item
   \textbf{Calibrate Expectations:} When a 10-seed makes the Elite 8,
-  that's genuinely rare (\textasciitilde5-10\% occurrence)
+  that's genuinely rare
 \item
-  \textbf{Understand Variance:} Back-to-back ``chalk'' tournaments (like
-  2023-2024) happen naturally about once every 5-6 years
+  \textbf{Understand Variance:} Zero mid-tier seeds advancing happens
+  about once every 17 years. Back-to-back ``chalk'' tournaments (like
+  2023-2024) are extremely rare (1-in-280)
 \item
   \textbf{Individual Team Stories:} Focus on specific teams' strengths
-  rather than seed generalizations
+  (λ values) rather than seed generalizations
+\item
+  \textbf{Context Matters:} The 2023-2024 drought was statistically
+  unusual, not typical tournament behavior
 \end{itemize}
 
 \subsubsection{For Teams and Coaches}\label{for-teams-and-coaches}
@@ -1798,9 +1901,11 @@ For coaches, analysts, and fans evaluating team performance:
   \begin{itemize}
   \tightlist
   \item
-    Stanford (λ = 5.37, 11-seed) appears under-seeded
+    Teams with high λ values despite lower seeds represent ``value
+    picks''
   \item
-    Look for similar discrepancies as value picks
+    Look for teams whose strength significantly exceeds seed-typical
+    expectations
   \end{itemize}
 \item
   \textbf{Tournament Preparedness:} Teams with high λ estimates derived
@@ -1839,12 +1944,12 @@ provide rigorous answers to our research questions:
 \def\labelenumi{\arabic{enumi}.}
 \tightlist
 \item
-  \textbf{Approximately 1.7 of the 8-12 seeds should advance to the
-  Sweet 16} in a typical tournament (range: 0-4)
+  \textbf{Approximately 2.36 of the 8-12 seeds should advance to the
+  Sweet 16} in a typical tournament (range: 0-7, typically 1-3 teams)
 \item
-  \textbf{An 8-12 seed that reaches the Sweet 16 has an 18.7\%
-  probability of reaching the Final Four} and a 3.7\% probability of
-  winning the championship
+  \textbf{An 8-12 seed that reaches the Sweet 16 has an 18.1\%
+  probability of reaching the Final Four} and a 2.6\% probability of
+  winning the championship (about 1-in-38)
 \end{enumerate}
 
 Beyond these aggregate findings, our \textbf{individual team probability
@@ -1853,17 +1958,21 @@ analysis} reveals:
 \begin{itemize}
 \item
   \textbf{Substantial within-seed variation:} Not all 8-seeds are
-  equivalent. Teams like Stanford (11-seed, 62.5\% Sweet 16 probability)
-  substantially outperform seed-typical expectations based on regular
-  season strength.
+  equivalent. Within the 8-12 seed range, team strength (λ values)
+  varies dramatically---from strong teams with \textasciitilde18\% Sweet
+  16 probability down to weak teams with near-zero probability. Regular
+  season performance explains these differences.
 \item
   \textbf{Historical context matters:} The 2023-2024 observation of zero
-  8-12 seeds in the Sweet 16 has a 17.9\% probability under our
-  model---unusual but expected about once every 5-6 years.
+  8-12 seeds in the Sweet 16 has a 5.94\% probability under our
+  model---genuinely unusual, occurring about once every 17 years. The
+  back-to-back occurrence is extremely rare (0.35\%, or 1-in-280).
 \item
-  \textbf{Model validation:} Strong agreement between analytical
-  predictions and Monte Carlo simulations confirms the robustness of the
-  Bradley-Terry modeling approach for tournament analysis.
+  \textbf{Methodological insight:} Simulation-based estimates (2.36
+  teams) provide more accurate predictions than seed-level analytical
+  calculations (3.75 teams) because simulations account for the full
+  distribution of team strengths within each seed, including very weak
+  teams that drag down the average.
 \end{itemize}
 
 \subsection{Methodological
@@ -1912,9 +2021,10 @@ application (actionable tournament insights)
 The 2023-2024 tournaments reminded us that even well-fitting models
 cannot perfectly predict single-elimination variance. But by
 understanding the \emph{distribution} of possible outcomes, we can
-better appreciate when something genuinely unusual occurs versus when
-randomness simply manifests in an unexpected but statistically plausible
-way.
+better appreciate when something genuinely unusual occurs. The
+back-to-back drought of mid-tier seeds was not just random
+variation---it was a genuinely rare event (1-in-280) that demonstrated
+exceptional top-seed dominance unlikely to persist.
 
 These findings provide a quantitative framework for understanding
 mid-tier seed performance in Women's March Madness. The methodology
@@ -2118,7 +2228,7 @@ For synthetic seeding:
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
-\emph{Report generated: 2025-10-30}
+\emph{Report generated: 2025-11-01}
 
 \emph{Course: STAT 479 - Sports Analytics, University of
 Wisconsin-Madison}

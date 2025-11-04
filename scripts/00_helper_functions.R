@@ -1,21 +1,11 @@
-# =============================================================================
-# Helper Functions
-# Purpose: Utility functions used across multiple scripts
-# =============================================================================
-
-# =============================================================================
-# Statistical Functions
-# =============================================================================
-# create dir if missing (safe, idempotent)
 dir_create_safe <- function(...) {
     dir.create(here::here(...), recursive = TRUE, showWarnings = FALSE)
 }
-# make sure targets exist before writing
 dir_create_safe("results", "tables")
 dir_create_safe("results", "figures")
 
 
-# String concat like ggplot2
+
 `%+%` <- function(a, b) paste0(a, b)
 
 # Safe dir create
@@ -93,7 +83,6 @@ get_opponent_seed <- function(seed) {
 
 # Get second round opponent seed
 get_second_round_opponent <- function(seed) {
-    # After winning first round, typical second round matchups
     matchups <- c(
         "1" = 1, "16" = 1, # Winner of 1 vs 16 faces winner of 8 vs 9
         "8" = 1, "9" = 1,

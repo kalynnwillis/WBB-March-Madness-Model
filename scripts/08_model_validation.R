@@ -17,28 +17,15 @@ set.seed(479)
 # 1. HOLDOUT VALIDATION: Train on 2019-2023, Test on 2024
 # =============================================================================
 
-cat(strrep("=", 60), "\n")
-cat("HOLDOUT VALIDATION: 2024 as Test Set\n")
-cat(strrep("=", 60), "\n\n")
 
-# Load full data
 games_cleaned <- readRDS(here("data", "processed", "games_cleaned.rds"))
 
-# Split: Train = 2019, 2021-2023; Test = 2024
 train_seasons <- c(2019, 2021, 2022, 2023)
 test_season <- 2024
 
 games_train <- games_cleaned %>% filter(season %in% train_seasons)
 games_test <- games_cleaned %>% filter(season == test_season)
 
-cat(sprintf(
-    "Training: %d seasons (%s) - %d games\n",
-    length(train_seasons), paste(train_seasons, collapse = ", "),
-    nrow(games_train)
-))
-cat(sprintf("Testing: 1 season (%d) - %d games\n\n", test_season, nrow(games_test)))
-
-# Build training BT data
 bt_train <- games_train %>%
     group_by(season, home_team, away_team) %>%
     summarise(
@@ -58,8 +45,6 @@ train_seasons_used <- sort(unique(bt_train$season))
 all_train_abilities <- list()
 
 for (season_year in train_seasons_used) {
-    cat(sprintf("Fitting model for %d season...\n", season_year))
-
     bt_season <- bt_train %>% filter(season == season_year)
 
     m <- BradleyTerry2::BTm(
@@ -104,8 +89,6 @@ train_abilities_final <- train_abilities_scaled %>%
         .groups = "drop"
     )
 
-cat(sprintf("\nTrained on %d unique teams\n", nrow(train_abilities_final)))
-
 # Extract home advantage from training data
 beta_home_train <- 0 # Default (neutral sites)
 
@@ -138,20 +121,10 @@ holdout_logloss <- -mean(
     na.rm = TRUE
 )
 
-cat(sprintf("\n=== Holdout Performance (2024) ===\n"))
-cat(sprintf("Test games: %d\n", nrow(test_predictions)))
-cat(sprintf("Accuracy: %.2f%%\n", holdout_accuracy * 100))
-cat(sprintf("Log-loss: %.4f\n\n", holdout_logloss))
-
 # =============================================================================
 # 2. CALIBRATION PLOTS: Predicted Probability vs. Actual Win Rate
 # =============================================================================
 
-cat(strrep("=", 60), "\n")
-cat("CALIBRATION ANALYSIS\n")
-cat(strrep("=", 60), "\n\n")
-
-# Bin predictions and compute actual win rates
 calibration_data <- test_predictions %>%
     mutate(
         prob_bin = cut(pred_prob,
@@ -170,7 +143,6 @@ calibration_data <- test_predictions %>%
     ) %>%
     filter(n_games >= 10) # Require at least 10 games per bin
 
-cat("Calibration bins with ≥10 games:\n")
 print(calibration_data %>% select(prob_bin, mean_pred_prob, actual_win_rate, n_games))
 
 # Calibration plot
@@ -218,22 +190,13 @@ ggsave(
     dpi = 400
 )
 
-cat("\n✓ Calibration plot saved\n\n")
-
 # Calibration metrics
 cal_mse <- mean((calibration_data$mean_pred_prob - calibration_data$actual_win_rate)^2, na.rm = TRUE)
 cal_mae <- mean(abs(calibration_data$mean_pred_prob - calibration_data$actual_win_rate), na.rm = TRUE)
 
-cat(sprintf("Calibration MSE: %.4f\n", cal_mse))
-cat(sprintf("Calibration MAE: %.4f\n\n", cal_mae))
-
 # =============================================================================
 # 3. COMPARE TO HISTORICAL NCAA SEEDS (if available)
 # =============================================================================
-
-cat(strrep("=", 60), "\n")
-cat("HISTORICAL NCAA SEED COMPARISON\n")
-cat(strrep("=", 60), "\n\n")
 
 # Placeholder for NCAA seed data - user needs to provide this
 # Expected format: team, season, ncaa_seed, region
@@ -250,8 +213,6 @@ ncaa_seed_template <- tibble(
 ncaa_seed_file <- here("data", "raw", "ncaa_seeds_historical.csv")
 
 if (file.exists(ncaa_seed_file)) {
-    cat("✓ Found historical NCAA seed data\n")
-
     ncaa_seeds <- read_csv(ncaa_seed_file, show_col_types = FALSE)
 
     # Compare model seeds to NCAA seeds for overlapping teams/seasons
@@ -269,12 +230,6 @@ if (file.exists(ncaa_seed_file)) {
     cat(sprintf("Comparing %d teams with both model and NCAA seeds\n\n", nrow(seed_comparison)))
 
     # Summary statistics
-    cat("Seed Difference Summary:\n")
-    print(summary(seed_comparison$seed_diff))
-
-    cat(sprintf("\nMean Absolute Seed Difference: %.2f\n", mean(seed_comparison$seed_diff_abs)))
-    cat(sprintf("Median Absolute Seed Difference: %.2f\n\n", median(seed_comparison$seed_diff_abs)))
-
     # Seed comparison plot
     p_seed_compare <- seed_comparison %>%
         ggplot(aes(x = ncaa_seed, y = seed)) +
@@ -305,16 +260,7 @@ if (file.exists(ncaa_seed_file)) {
         height = 10,
         dpi = 400
     )
-
-    cat("✓ Seed comparison plot saved\n")
 } else {
-    cat("⚠️  No historical NCAA seed data found\n")
-    cat(sprintf("   Expected file: %s\n", ncaa_seed_file))
-    cat("\nTo enable NCAA seed comparison:\n")
-    cat("1. Create a CSV file with columns: season, team, ncaa_seed, region\n")
-    cat("2. Use exact team names matching your model data\n")
-    cat("3. Save to data/raw/ncaa_seeds_historical.csv\n\n")
-
     # Create template file
     dir_create_safe("data", "raw")
     write_csv(
@@ -329,8 +275,6 @@ if (file.exists(ncaa_seed_file)) {
         ),
         here("data", "raw", "ncaa_seeds_template.csv")
     )
-
-    cat("✓ Created template file: data/raw/ncaa_seeds_template.csv\n\n")
 }
 
 # =============================================================================
@@ -353,7 +297,6 @@ validation_results <- list(
 )
 
 saveRDS(validation_results, here("results", "tables", "validation_results.rds"))
-cat("\n✓ Validation results saved\n")
 
 # Create summary table
 validation_summary <- tibble(
@@ -380,9 +323,5 @@ validation_summary <- tibble(
 )
 
 write_csv(validation_summary, here("results", "tables", "validation_summary.csv"))
-
-cat("\n", strrep("=", 60), "\n")
-cat("VALIDATION COMPLETE\n")
-cat(strrep("=", 60), "\n\n")
 
 print(validation_summary)

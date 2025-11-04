@@ -5,8 +5,6 @@ suppressPackageStartupMessages({
 })
 
 
-# Expanded to include more seasons for more robust model estimation
-# Using 2019-2024 (5 seasons) - skipping 2020 due to COVID disruptions
 SEASONS <- c(2019, 2021, 2022, 2023, 2024)
 set.seed(479)
 
@@ -16,7 +14,6 @@ if (!requireNamespace("wehoop", quietly = TRUE)) {
 }
 library(wehoop)
 
-# Helper function to pick first available column name
 pick_first <- function(cands, nm) {
     hit <- intersect(cands, nm)
     if (length(hit)) hit[1] else NA_character_
@@ -29,7 +26,6 @@ nm <- names(raw)
 cat("Columns returned by wehoop:\n")
 print(nm)
 
-# Dates / IDs / season
 date_col <- pick_first(c("game_date", "start_date", "date"), nm)
 season_col <- pick_first(c("season", "season_year"), nm)
 id_col <- pick_first(c("game_id", "id", "espn_game_id"), nm)
@@ -52,14 +48,6 @@ away_score_col <- pick_first(c("away_score", "away_points", "away_team_score"), 
 
 neutral_col <- pick_first(c("neutral_site", "neutral", "is_neutral_site", "site_neutral"), nm)
 type_col <- pick_first(c("season_type", "game_type", "tournament_type", "conference_competition"), nm)
-
-cat("\nColumn choices:\n")
-print(list(
-    date_col = date_col, season_col = season_col, id_col = id_col,
-    home_team_col = home_team_col, away_team_col = away_team_col,
-    home_score_col = home_score_col, away_score_col = away_score_col,
-    neutral_col = neutral_col, type_col = type_col
-))
 
 
 must_have <- c(date_col, season_col, home_team_col, away_team_col)
@@ -128,8 +116,6 @@ if (is.null(d1_teams) || !"team_id" %in% names(d1_teams)) {
         dplyr::distinct() |>
         dplyr::filter(!is.na(di_key), di_key != "")
 
-    cat(sprintf("D-I teams in roster: %d\n", nrow(wbb_di)))
-
     # Apply D-I normalization and filtering
     games_norm <- games_combined |>
         dplyr::mutate(
@@ -155,8 +141,7 @@ if (is.null(d1_teams) || !"team_id" %in% names(d1_teams)) {
     ))
 }
 
-# ====== REGULAR-SEASON FILTER (IMPROVED) ======
-# Coerce season_type once and handle both numeric and text
+# ====== REGULAR-SEASON FILTER  ======
 stype <- suppressWarnings(as.integer(games_norm$season_type))
 
 if (!all(is.na(stype)) && any(stype == 2, na.rm = TRUE)) {
@@ -164,7 +149,6 @@ if (!all(is.na(stype)) && any(stype == 2, na.rm = TRUE)) {
     cat("Using numeric season_type filter (2 = regular season)\n")
     games_cleaned <- games_norm |> filter(stype == 2)
 } else {
-    # Text or missing season_type: use text matching + date fallback
     cat("Using text/date-based season filter\n")
     stxt <- tolower(as.character(games_norm$season_type))
     stxt[is.na(stxt)] <- ""
@@ -190,11 +174,6 @@ games_cleaned <- games_cleaned |>
 
 if (nrow(games_cleaned) == 0) stop("No regular-season completed games after filtering.")
 
-cat(sprintf(
-    "After basic filters: %d games, %d teams\n",
-    nrow(games_cleaned),
-    length(unique(c(games_cleaned$home_team, games_cleaned$away_team)))
-))
 
 if (!requireNamespace("igraph", quietly = TRUE)) install.packages("igraph")
 library(igraph)
@@ -210,11 +189,6 @@ teams_in_cc <- names(comps$membership[comps$membership == largest_comp])
 games_cleaned <- games_cleaned |>
     filter(home_team %in% teams_in_cc, away_team %in% teams_in_cc)
 
-cat(sprintf(
-    "After connected component filter: %d games, %d teams\n",
-    nrow(games_cleaned),
-    length(unique(c(games_cleaned$home_team, games_cleaned$away_team)))
-))
 
 team_game_counts <- bind_rows(
     games_cleaned |> count(team = home_team, name = "n"),
@@ -230,14 +204,6 @@ eligible_teams <- team_game_counts |>
 games_cleaned <- games_cleaned |>
     filter(home_team %in% eligible_teams, away_team %in% eligible_teams)
 
-cat(sprintf(
-    "After min-games filter: %d games, %d teams\n",
-    nrow(games_cleaned),
-    length(unique(c(games_cleaned$home_team, games_cleaned$away_team)))
-))
-
-# Print summary by season
-cat("\nGames and teams by season:\n")
 season_summary <- games_cleaned %>%
     group_by(season) %>%
     summarise(
@@ -270,7 +236,6 @@ bt_data <- games_cleaned |>
 
 
 # ====== TOURNAMENT SEEDS: Real NCAA Data vs Model-Based ======
-# Check if real NCAA tournament seeds are available
 ncaa_seed_file <- here("data", "raw", "ncaa_seeds_historical.csv")
 
 if (file.exists(ncaa_seed_file)) {
@@ -284,29 +249,15 @@ if (file.exists(ncaa_seed_file)) {
             season = max(SEASONS)
         )
 
-    # Verify teams exist in our cleaned data
     available_teams <- unique(c(games_cleaned$home_team, games_cleaned$away_team))
     missing_teams <- tournament_seeds |>
         filter(!team %in% available_teams) |>
         pull(team)
 
-    if (length(missing_teams) > 0) {
-        cat("⚠️  Warning: Some NCAA tournament teams not found in data:\n")
-        cat("    ", paste(head(missing_teams, 5), collapse = ", "), "\n")
-        cat("    (Team names may not match between NCAA data and wehoop)\n")
-    }
 
     tournament_seeds <- tournament_seeds |>
         filter(team %in% available_teams)
 
-    cat(sprintf("  Loaded %d real NCAA tournament teams\n", nrow(tournament_seeds)))
-} else {
-    cat("\n⚠️  NCAA seed file not found - using MODEL-BASED SEEDS\n")
-    cat("    File expected at: data/raw/ncaa_seeds_historical.csv\n")
-    cat("    These are PLACEHOLDER seeds based on model strength ranking\n")
-    cat("    NOT actual NCAA committee seeds!\n\n")
-
-    # Fallback: Model-based seeds (for demonstration/testing only)
     team_perf <- games_cleaned |>
         transmute(team = home_team, win = home_winner, season = season) |>
         bind_rows(games_cleaned |>
@@ -340,10 +291,6 @@ mid_tier_seeds <- tournament_seeds |>
     mutate(seed_category = "8-12 seeds")
 
 seed_type <- if (file.exists(ncaa_seed_file)) "NCAA committee seeds" else "model-based ranks"
-cat(sprintf(
-    "Tournament teams (%s): %d | 8–12 seeds: %d\n",
-    seed_type, nrow(tournament_seeds), nrow(mid_tier_seeds)
-))
 
 dir.create(here("data", "raw"), recursive = TRUE, showWarnings = FALSE)
 dir.create(here("data", "processed"), recursive = TRUE, showWarnings = FALSE)

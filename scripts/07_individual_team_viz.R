@@ -74,15 +74,7 @@ ggsave(
     dpi = 300
 )
 
-# REMOVED: Plot 10 - Round-by-Round Progression (just shows declining probabilities, not insightful)
-
-# REMOVED: Plot 11 - Probability Heatmap (redundant with plot 08)
-
-# REMOVED: Plot 12 - Expected vs Observed (only one data point, not useful with such limited historical data)
-
-# REMOVED: Plot 13 - Stanford Spotlight (arbitrary team selection, not generalizable)
-
-# NEW: Upset Potential Analysis - Show strength variability within seed groups
+# Upset Potential Analysis - Show strength variability within seed groups
 
 round_order <- c(
     "Round of 64", "Round of 32", "Sweet 16",
@@ -107,20 +99,17 @@ upset_data <- team_abilities %>%
         .groups = "drop"
     ) %>%
     mutate(
-        cv = sd_lambda / abs(mean_lambda), # Coefficient of variation
+        cv = sd_lambda / abs(mean_lambda),
         range_lambda = max_lambda - min_lambda
     )
 
 p10 <- upset_data %>%
     ggplot(aes(x = factor(seed))) +
-    # Show range with error bars
     geom_errorbar(
         aes(ymin = min_lambda, ymax = max_lambda),
         width = 0.4, linewidth = 1.2, color = oi_colors[6], alpha = 0.7
     ) +
-    # Show mean
     geom_point(aes(y = mean_lambda), size = 5, color = oi_colors[3], alpha = 0.9) +
-    # Show ±1 SD
     geom_errorbar(
         aes(ymin = mean_lambda - sd_lambda, ymax = mean_lambda + sd_lambda),
         width = 0.2, linewidth = 1.5, color = oi_colors[5], alpha = 0.8
@@ -149,12 +138,10 @@ ggsave(
     dpi = 400
 )
 
-# NEW: Key Matchup Analysis - Win probabilities for critical first round matchups
+# Key Matchup Analysis - Win probabilities for critical first round matchups
 
-# Load matchup probabilities
 matchup_probs <- readRDS(here("data", "processed", "matchup_probabilities.rds"))
 
-# Focus on key matchups involving 8-12 seeds
 key_matchups <- matchup_probs %>%
     filter(higher_seed %in% 8:12 | lower_seed %in% 8:12) %>%
     mutate(

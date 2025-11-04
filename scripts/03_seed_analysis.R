@@ -42,14 +42,12 @@ first_round_analysis <- mid_tier_teams %>%
     left_join(matchup_map, by = "seed") %>%
     rowwise() %>%
     mutate(
-        # Find the opponent's ability
         opponent_lambda = {
             opponent_team <- team_abilities %>%
                 filter(seed == opponent_seed, region == region) %>%
                 pull(lambda)
             if (length(opponent_team) > 0) opponent_team[1] else NA_real_
         },
-        # Calculate win probability
         prob_win_round1 = if_else(
             !is.na(opponent_lambda),
             1 / (1 + exp(-(lambda - opponent_lambda))),
@@ -73,10 +71,6 @@ first_round_summary <- first_round_analysis %>%
 
 # Expected number of 8-12 seeds advancing to Round of 32
 expected_advance_r32 <- sum(first_round_summary$expected_wins)
-cat(sprintf(
-    "\nExpected # of 8-12 seeds advancing to Round of 32: %.2f\n",
-    expected_advance_r32
-))
 
 # Calculate Second Round Win Probabilities (Round of 32 -> Sweet 16)
 
@@ -122,21 +116,10 @@ second_round_summary <- second_round_analysis %>%
 
 # Expected number of 8-12 seeds in Sweet 16
 expected_in_sweet16 <- sum(second_round_summary$expected_in_sweet16)
-cat(sprintf("\nExpected # of 8-12 seeds in Sweet 16: %.2f\n", expected_in_sweet16))
 
 
 # Answer Research Question 1: Expected Advancement Past Round 2
 
-cat(sprintf(
-    "Expected 8-12 seeds to advance to Round of 32: %.2f\n",
-    expected_advance_r32
-))
-cat(sprintf(
-    "Expected 8-12 seeds to advance to Sweet 16: %.2f\n",
-    expected_in_sweet16
-))
-
-cat("\nBy Seed:\n")
 advancement_summary <- second_round_summary %>%
     left_join(first_round_summary %>% select(seed, expected_wins), by = "seed") %>%
     select(

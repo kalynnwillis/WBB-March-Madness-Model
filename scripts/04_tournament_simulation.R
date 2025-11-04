@@ -59,7 +59,6 @@ inv_logit <- function(x) 1 / (1 + exp(-x))
 # Standard NCAA Women's Tournament bracket
 # 64 teams, 4 regions, single elimination
 
-# Define the bracket structure with standard matchups
 create_bracket_structure <- function() {
     regions <- c("Portland", "Albany", "Spokane", "Wichita") # Example region names
 
@@ -91,7 +90,6 @@ simulate_game <- function(team1_lambda, team2_lambda) {
 simulate_tournament_fast <- function(seed_val = NULL) {
     if (!is.null(seed_val)) set.seed(seed_val)
 
-    # Round 1 pairings are fixed per region
     hi <- c(1, 2, 3, 4, 5, 6, 7, 8)
     lo <- c(16, 15, 14, 13, 12, 11, 10, 9)
 
@@ -199,7 +197,7 @@ simulate_tournament_fast <- function(seed_val = NULL) {
     bind_rows(out_rows, ff_rows, list(champ)) %>% bind_rows()
 }
 
-# Run Monte Carlo Simulations (FAST & PARALLEL)
+# Run Monte Carlo Simulations
 
 library(parallel)
 
@@ -224,13 +222,11 @@ simulation_results <- mclapply(
 
 all_simulations <- bind_rows(simulation_results)
 
-# Clean up memory
 rm(simulation_results)
 gc(verbose = FALSE)
 
 #  Analyze 8-12 Seed Performance Across Simulations
 
-# Define round order
 round_order <- c(
     "Round of 64", "Round of 32", "Sweet 16",
     "Elite 8", "Final Four", "Championship"
@@ -272,48 +268,20 @@ s16_count <- mid_tier_counts %>%
     filter(round == "Sweet 16") %>%
     pull(n_mid_tier)
 
-cat(sprintf("\nSweet 16 (after Round 2):\n"))
-cat(sprintf("  Expected: %.2f 8-12 seeds\n", mean(s16_count)))
-cat(sprintf(
-    "  95%% CI: [%.2f, %.2f]\n",
-    quantile(s16_count, 0.025), quantile(s16_count, 0.975)
-))
-
 # Elite 8
 e8_count <- mid_tier_counts %>%
     filter(round == "Elite 8") %>%
     pull(n_mid_tier)
-
-cat(sprintf("\nElite 8:\n"))
-cat(sprintf("  Expected: %.2f 8-12 seeds\n", mean(e8_count)))
-cat(sprintf(
-    "  95%% CI: [%.2f, %.2f]\n",
-    quantile(e8_count, 0.025), quantile(e8_count, 0.975)
-))
 
 # Final Four
 f4_count <- mid_tier_counts %>%
     filter(round == "Final Four") %>%
     pull(n_mid_tier)
 
-cat(sprintf("\nFinal Four:\n"))
-cat(sprintf("  Expected: %.2f 8-12 seeds\n", mean(f4_count)))
-cat(sprintf(
-    "  95%% CI: [%.2f, %.2f]\n",
-    quantile(f4_count, 0.025), quantile(f4_count, 0.975)
-))
-
 # Championship
 champ_count <- mid_tier_counts %>%
     filter(round == "Championship") %>%
     pull(n_mid_tier)
-
-cat(sprintf("\nChampionship:\n"))
-cat(sprintf("  Expected: %.2f 8-12 seeds\n", mean(champ_count)))
-cat(sprintf(
-    "  Probability at least one: %.2f%%\n",
-    mean(champ_count > 0) * 100
-))
 
 # Conditional Probabilities from Simulation
 
@@ -349,13 +317,6 @@ championship_winners <- all_simulations %>%
 mid_tier_championships <- championship_winners %>%
     filter(winner_seed >= 8 & winner_seed <= 12)
 
-cat(sprintf("\nOut of %d simulations:\n", N_SIMS))
-cat(sprintf(
-    "  8-12 seed won championship: %d times (%.2f%%)\n",
-    nrow(mid_tier_championships),
-    (nrow(mid_tier_championships) / N_SIMS) * 100
-))
-
 # Analyze Performance by Individual Seed
 
 seed_performance <- all_simulations %>%
@@ -365,7 +326,6 @@ seed_performance <- all_simulations %>%
     summarise(n_reached = n(), .groups = "drop") %>%
     mutate(
         pct_of_sims = (n_reached / N_SIMS) * 100,
-        # Approximate number per seed (4 teams of each seed in tournament)
         expected_per_seed = n_reached / (N_SIMS * 4)
     )
 

@@ -136,11 +136,8 @@ ggsave(
     dpi = 400
 )
 
-# REMOVED: Plot 02 - All Team Strengths (redundant with seed distribution)
-
 # First Round Win Probabilities by Seed (with simulation CIs)
 
-# Compute CIs from simulation data (FIXED: include sims with 0 wins)
 all_simulations <- readRDS(here("results", "tables", "all_simulations.rds"))
 
 # Create complete grid: every sim × every seed
@@ -210,9 +207,6 @@ p3 <- first_round_ci %>%
     )
 
 ggsave(here("results", "figures", "03_first_round_probabilities.png"), p3, width = 10, height = 6, dpi = 400)
-
-
-# REMOVED: Plot 04 - Expected Advancement (covered better by heatmap and simulation plot)
 
 # Simulation Results Distribution
 
@@ -396,7 +390,7 @@ ggsave(here("results", "figures", "07_conditional_probabilities.png"), p7, width
 # Load team-level probabilities for proper per-team heatmap
 team_probs <- readRDS(here("results", "tables", "individual_team_probabilities.rds"))
 
-# Build per-team probabilities by seed and round (FIXED: use actual per-team data)
+# Build per-team probabilities by seed and round
 heatmap_data <- team_probs %>%
     filter(seed %in% 8:12, round %in% round_order) %>%
     mutate(prob = as_prob01(percentage)) %>%

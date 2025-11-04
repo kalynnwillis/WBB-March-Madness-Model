@@ -77,6 +77,16 @@
 \newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
 \newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
 \newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
 \usepackage{graphicx}
 \makeatletter
 \newsavebox\pandoc@box
@@ -127,7 +137,7 @@
 \makeatother
 \subtitle{Analyzing Mid-Tier Seed (8-12) Advancement Probabilities}
 \author{Kalynn Willis, Jasmine, Ellie}
-\date{2025-11-01}
+\date{2025-11-03}
 
 \begin{document}
 \maketitle
@@ -159,16 +169,16 @@ happens to teams seeded 8-12.
 \subsection{Main Findings}\label{main-findings}
 
 In a typical tournament, expect about \textbf{two to three teams} seeded
-8-12 to reach the Sweet Sixteen. Our simulations show an average of 2.36
+8-12 to reach the Sweet Sixteen. Our simulations show an average of 2.21
 teams (range 0-7), with most tournaments having 1-3 mid-tier seeds
-advance. The 2023-2024 drought (zero advancing) has about a \textbf{6\%
+advance. The 2023-2024 drought (zero advancing) has about a \textbf{7\%
 chance} of happening---genuinely unusual, occurring naturally about once
-every \textbf{17 years}, not every tournament cycle.
+every \textbf{15 years}, not every tournament cycle.
 
 When a mid-tier seed breaks through to the Sweet Sixteen, what happens
-next? About one in five reach the Final Four, and only one in
-thirty-eight win the championship. Making the Sweet Sixteen is the
-hardest part; once there, they're competitive (48.6\% reach Elite 8) but
+next? About one in seven reach the Final Four, and only one in
+fifty-three win the championship. Making the Sweet Sixteen is the
+hardest part; once there, they're competitive (45\% reach Elite 8) but
 still face long odds against top seeds for the title.
 
 Perhaps most importantly, seed numbers don't tell the whole story.
@@ -185,7 +195,7 @@ guesswork.
 \begin{itemize}
 \tightlist
 \item
-  \textbf{Expected 8-12 seeds in Sweet 16:} 2.36 teams (simulation
+  \textbf{Expected 8-12 seeds in Sweet 16:} 2.21 teams (simulation
   average, range 0-7)
 \item
   \textbf{Conditional probability of reaching Finals (given Sweet 16):}
@@ -197,8 +207,8 @@ guesswork.
   \textbf{Highest Sweet 16 probability (among mid-tier seeds):} Iowa
   State Cyclones (8-seed) at 17.2\%
 \item
-  \textbf{Probability of zero 8-12 seeds in Sweet 16:} 5.94\% (about
-  1-in-17 tournaments)
+  \textbf{Probability of zero 8-12 seeds in Sweet 16:} 6.84\% (about
+  1-in-15 tournaments)
 \end{itemize}
 
 \subsection{What This Means}\label{what-this-means}
@@ -218,7 +228,7 @@ to near-zero.
 
 \textbf{For fans and media:} When a 10-seed reaches the Elite Eight,
 celebrate appropriately. It's genuinely rare. The 2023-2024 drought of
-zero mid-tier seeds advancing was even rarer---a 1-in-17 occurrence that
+zero mid-tier seeds advancing was even rarer---a 1-in-15 occurrence that
 won't happen frequently.
 
 \subsection{The Bottom Line}\label{the-bottom-line}
@@ -231,6 +241,17 @@ breakthrough candidates. Basketball remains beautifully unpredictable,
 but patterns emerge. Expect about two to three mid-tier seeds to reach
 the Sweet Sixteen in most years, with about half of those making deeper
 runs to the Elite Eight.
+
+\subsection{Important Caveat}\label{important-caveat}
+
+This analysis uses \textbf{synthetic tournament seeds} based on team
+strength (Bradley-Terry λ values), not actual NCAA selection committee
+seeds. Results show what would happen if seeds perfectly matched team
+quality---a ``what-if'' scenario. Real NCAA tournaments involve
+committee decisions that may over- or under-seed teams relative to their
+true strength. To predict an actual tournament, you would need to use
+the real NCAA bracket. See Section 4.3 for detailed discussion of this
+limitation.
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
@@ -306,12 +327,24 @@ Additionally, we extend the analysis to:
   Validate analytical predictions with Monte Carlo simulation
 \end{itemize}
 
-\subsection{1.4 Historical Context}\label{historical-context}
+\subsection{1.4 Historical Context and
+Scope}\label{historical-context-and-scope}
 
 In both the 2023 and 2024 NCAA Women's Basketball Tournaments,
 \textbf{no teams seeded 8-12 reached the Sweet 16}. This unprecedented
 back-to-back occurrence motivates our analysis: Is this outcome
 statistically unusual, or should we expect such scenarios regularly?
+
+\textbf{Important Note on Scope:} This analysis uses \textbf{synthetic
+tournament seeds} based on team strength (Bradley-Terry λ values) to
+understand the \emph{expected} dynamics of mid-tier seeds in
+tournaments. We do not analyze actual historical NCAA tournament
+brackets. Instead, we ask: ``Given team strengths derived from regular
+season play, what should we expect from teams at the 8-12 seed strength
+level?'' This approach provides insight into tournament dynamics under
+optimal seeding, though real NCAA committee decisions may deviate from
+pure strength-based rankings. See Section 2.2 and Section 4.3 for
+detailed discussion of this methodological choice and its implications.
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
@@ -346,6 +379,128 @@ P(\text{team } i \text{ beats team } j) = \frac{e^{\lambda_i}}{e^{\lambda_i} + e
   Win probability depends only on the \textbf{difference}
   \(\lambda_i - \lambda_j\)
 \end{itemize}
+
+\subsubsection{Covariates Considered and Model
+Comparison}\label{covariates-considered-and-model-comparison}
+
+Following Professor Deshpande's recommendation, we compared the
+predictive performance of multiple models rather than relying solely on
+AIC.
+
+\textbf{Tested covariates:} - \textbf{Offensive rating}: Points scored
+per game - \textbf{Defensive rating}: Points allowed per game -
+\textbf{Net rating}: Point differential per game - \textbf{Margin of
+victory (MOV)}: Average winning margin
+
+\textbf{Models Evaluated:}
+
+We fit five models and compared their \textbf{predictive performance} on
+a holdout test set (2024 season), training on 2019, 2021-2023:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Base Model:} \texttt{team\ +\ home\_advantage}
+\item
+  \textbf{Net Rating Model:}
+  \texttt{team\ +\ home\_advantage\ +\ net\_diff}
+\item
+  \textbf{Off/Def Model:}
+  \texttt{team\ +\ home\_advantage\ +\ off\_diff\ +\ def\_diff}
+\item
+  \textbf{MOV Model:} \texttt{team\ +\ home\_advantage\ +\ mov\_diff}
+\item
+  \textbf{Combined Model:}
+  \texttt{team\ +\ home\_advantage\ +\ net\_diff\ +\ mov\_diff}
+\end{enumerate}
+
+\textbf{Results:}
+
+\begin{longtable}[]{@{}lcccc@{}}
+\toprule\noalign{}
+Model & Test Accuracy & Log-Loss & Brier Score & Calibration MSE \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Base & \textbf{69.89\%} & \textbf{0.5779} & \textbf{0.1970} &
+\textbf{0.0092} \\
+Net Rating & 69.89\% & 0.5779 & 0.1970 & 0.0092 \\
+Off/Def & 69.89\% & 0.5779 & 0.1970 & 0.0092 \\
+MOV & 69.89\% & 0.5779 & 0.1970 & 0.0092 \\
+Combined & 69.89\% & 0.5779 & 0.1970 & 0.0092 \\
+\end{longtable}
+
+All models show \textbf{identical predictive performance} across all
+metrics. This is not a computational error---it reflects genuine
+redundancy.
+
+\begin{figure}
+
+{\centering \includegraphics[width=33.33in]{../results/figures/18_lambda_comparison} 
+
+}
+
+\caption{Team abilities (lambda) from base model vs. covariate model show strong correlation (r = 0.85), but predictions are identical because relative team differences remain unchanged.}\label{fig:lambda-comparison}
+\end{figure}
+
+\textbf{Why are covariates redundant?}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  \textbf{High correlation:} Team strength (λ) correlates strongly with
+  performance metrics:
+
+  \begin{itemize}
+  \tightlist
+  \item
+    λ vs.~Net Rating: \textbf{r = 0.76}
+  \item
+    λ vs.~Offensive Rating: \textbf{r = 0.76}
+  \item
+    λ vs.~Defensive Rating: \textbf{r = -0.17}
+  \end{itemize}
+\item
+  \textbf{Information already captured:} The Bradley-Terry λ parameters
+  encode team quality through win/loss patterns against opponents of
+  varying strength. Teams that score more points (high offensive rating)
+  naturally win more games, which increases their λ. Adding explicit
+  offensive/defensive covariates provides no new information.
+\item
+  \textbf{Prediction mechanism:} Tournament predictions use
+  \texttt{P(win)\ =\ 1/(1\ +\ exp(-(λ\_i\ -\ λ\_j)))}. Even though
+  covariate models alter absolute λ values, the \textbf{relative
+  differences} between teams (what matters for predictions) remain
+  nearly identical.
+\end{enumerate}
+
+\textbf{Model Selection Justification:}
+
+We use the \textbf{Base Model} (\texttt{team\ +\ home\_advantage})
+because:
+
+\begin{itemize}
+\tightlist
+\item
+  ✓ \textbf{Same predictive accuracy} as complex models (69.89\% on test
+  set)
+\item
+  ✓ \textbf{Same log-loss} (0.5779) and calibration (MSE = 0.0092)
+\item
+  ✓ \textbf{Simpler and more interpretable} (fewer parameters)
+\item
+  ✓ \textbf{Follows Occam's Razor:} Prefer simpler models when
+  performance is equal
+\item
+  ✓ \textbf{More robust:} Fewer parameters reduce overfitting risk
+\end{itemize}
+
+This finding aligns with Bradley-Terry theory: team fixed effects
+naturally absorb variance explained by team-level covariates when those
+covariates are derived from the same game outcomes used to estimate team
+strengths.
 
 \subsubsection{Advantages for Tournament
 Analysis}\label{advantages-for-tournament-analysis}
@@ -773,36 +928,48 @@ Finally, we prepare the data structure for Bradley-Terry model fitting:
 \end{Highlighting}
 \end{Shaded}
 
-\subsubsection{Important Note: Model-Based
-Seeding}\label{important-note-model-based-seeding}
+\subsubsection{⚠️ Critical Limitation: Synthetic
+Seeding}\label{critical-limitation-synthetic-seeding}
 
-This analysis uses \textbf{model-based seeding} derived from
-Bradley-Terry lambda values, \textbf{not actual NCAA committee seeds}.
+This analysis uses \textbf{artificially generated tournament seeds}, not
+actual NCAA tournament data. This is a fundamental limitation that
+affects how results should be interpreted.
 
-\begin{itemize}
-\tightlist
-\item
-  Seeds are assigned by ranking the top 64 teams by their aggregated
-  Bradley-Terry strength (λ)
-\item
-  This accounts for opponent-adjusted strength, not just raw win
-  percentage
-\item
-  Seed-specific matchup probabilities (e.g., ``8 vs 9 seed'') are
-  \textbf{model-based what-if scenarios}, not historical reproductions
-\item
-  To use real NCAA tournament data, replace
-  \texttt{tournament\_seeds.csv} with actual bracket assignments
-\end{itemize}
+\textbf{What We Did:} - Ranked all teams by their Bradley-Terry strength
+(λ) aggregated across 5 seasons (2019, 2021-2024) - Assigned seeds 1-16
+to the top 64 teams across four regions based purely on team strength -
+Simulated tournaments using these model-based seeds
 
-\textbf{Key Improvement:} Lambda-based seeding is more accurate than
-win-percentage seeding because it accounts for strength of schedule. For
-example, a team with 20 wins against weak opponents gets a lower seed
-than a team with 20 wins against strong opponents.
+\textbf{What We Did NOT Do:} - Use actual NCAA selection committee seeds
+from real tournaments - Account for conference tournament results,
+geographic placement, or selection committee subjective decisions -
+Analyze historical tournament outcomes with real brackets
 
-\textbf{Interpretation:} Results should be viewed as
-\textbf{strength-based projections} rather than literal predictions of
-specific NCAA tournament matchups.
+\textbf{Why This Matters:} - Our results answer: ``What if seeds
+perfectly matched team strength?''---not ``What happened in real NCAA
+tournaments?'' - Real committee seeding may over-seed or under-seed
+teams based on factors beyond pure performance - Seed-specific
+probabilities (e.g., ``8-seeds have 12\% chance of Sweet 16'') refer to
+\textbf{strength-equivalent 8-seeds}, not actual committee-assigned
+8-seeds - Real bracket matchups would differ from our simulated
+structure
+
+\textbf{Advantages of This Approach:} - Strength-based seeding removes
+committee bias and politics - Accounts for opponent-adjusted strength
+(strength of schedule), not just win percentage - Provides ``ground
+truth'' baseline of what tournament outcomes would look like with
+perfect seeding - More predictive than committee seeding in some cases
+(e.g., identifying over/under-seeded teams)
+
+\textbf{To Use This Model on Real Tournaments:} - Replace synthetic
+seeds with actual NCAA bracket assignments - Re-run simulations using
+committee-assigned matchups - Compare predictions against actual
+outcomes for validation
+
+\textbf{Interpretation:} Results represent \textbf{strength-based
+projections} showing expected outcomes under optimal seeding, not
+historical tournament analysis. See Section 4.3 for detailed discussion
+of this limitation and its implications.
 
 \subsection{2.3 Analysis Approach}\label{analysis-approach}
 
@@ -1306,13 +1473,13 @@ Advancement}\label{research-question-1-expected-advancement}
 \subsubsection{Answer to Research Question
 1}\label{answer-to-research-question-1}
 
-\textbf{We expect approximately 2.36 of the 8-12 seeds to advance to the
+\textbf{We expect approximately 2.21 of the 8-12 seeds to advance to the
 Sweet 16} in a typical tournament.
 
 \begin{itemize}
 \tightlist
 \item
-  \textbf{Simulation mean:} 2.36 teams (from 5,000 simulations)
+  \textbf{Simulation mean:} 2.21 teams (from 5,000 simulations)
 \item
   \textbf{Typical range:} 0-7 teams (full range), 1-3 teams (67\% of
   simulations)
@@ -1407,11 +1574,11 @@ Seed & P(Elite 8 \&\#124; Sweet 16) & P(Final Four \&\#124; Sweet 16) & P(Finals
   However, subsequent rounds still present formidable challenges
   (typically 1-3 seeds)
 \item
-  Only about \textbf{1 in 38 teams (2.6\%)} that reach the Sweet 16 go
+  Only about \textbf{1 in 53 teams (1.9\%)} that reach the Sweet 16 go
   on to win the championship
 \item
-  Nearly half (48.6\%) reach the Elite 8, showing they remain
-  competitive once they've proven themselves
+  Nearly half (45\%) reach the Elite 8, showing they remain competitive
+  once they've proven themselves
 \item
   The conditional probabilities vary by seed (8-9 seeds slightly
   stronger than 10-12 seeds overall)
@@ -1521,21 +1688,27 @@ probabilities comparable to higher-seeded teams.
 \subsection{3.7 Historical Context: 2023-2024
 Results}\label{historical-context-2023-2024-results}
 
-Our model predicts approximately \textbf{2.36 teams seeded 8-12} should
+\textbf{Note:} The following comparison uses actual NCAA tournament
+outcomes (2023-2024) against our strength-based model predictions. While
+our model uses synthetic seeds, the observed pattern of zero mid-tier
+seeds advancing is a real historical fact that we can contextualize.
+
+Our model predicts approximately \textbf{2.21 teams seeded 8-12} should
 reach the Sweet 16 on average. However, in both 2023 and 2024,
-\textbf{zero 8-12 seeds} reached the Sweet 16.
+\textbf{zero 8-12 seeds} (as assigned by the NCAA selection committee)
+reached the Sweet 16.
 
 \textbf{Statistical Context:}
 
 \begin{itemize}
 \tightlist
 \item
-  Expected number of 8-12 seeds in Sweet 16: \textbf{2.36} (simulation
+  Expected number of 8-12 seeds in Sweet 16: \textbf{2.21} (simulation
   mean)
 \item
-  Probability of zero 8-12 seeds reaching Sweet 16: \textbf{5.94\%}
+  Probability of zero 8-12 seeds reaching Sweet 16: \textbf{6.84\%}
 \item
-  \textbf{Interpretation:} About a \textbf{1-in-17 chance}---genuinely
+  \textbf{Interpretation:} About a \textbf{1-in-15 chance}---genuinely
   unusual
 \end{itemize}
 
@@ -1556,8 +1729,8 @@ This suggests the 2023-2024 results were \textbf{statistically unusual}
 
 \textbf{Back-to-back occurrence (2023 AND 2024):} The probability of
 zero mid-tier seeds advancing in consecutive tournaments is
-approximately \textbf{0.35\%} (5.94\% × 5.94\%), or about
-\textbf{1-in-280}. This is genuinely rare and represents a notable
+approximately \textbf{0.47\%} (6.84\% × 6.84\%), or about
+\textbf{1-in-214}. This is genuinely rare and represents a notable
 statistical anomaly. While not impossible, this level of top-seed
 dominance is historically uncommon and unlikely to persist.
 
@@ -1572,7 +1745,7 @@ dominance is historically uncommon and unlikely to persist.
 \begin{enumerate}
 \def\labelenumi{\arabic{enumi}.}
 \item
-  \textbf{Expected Sweet 16 Advancement:} Approximately 2.36 teams
+  \textbf{Expected Sweet 16 Advancement:} Approximately 2.21 teams
   seeded 8-12 reach the Sweet 16 in a typical tournament (range: 0-7,
   with 1-3 teams in 67\% of simulations)
 \item
@@ -1582,16 +1755,16 @@ dominance is historically uncommon and unlikely to persist.
   \begin{itemize}
   \tightlist
   \item
-    48.6\% chance of Elite 8
+    45.0\% chance of Elite 8
   \item
-    18.1\% chance of Final Four
+    15.3\% chance of Final Four
   \item
-    6.8\% chance of Championship game
+    5.3\% chance of Championship game
   \item
-    2.6\% chance of winning it all (about 1-in-38)
+    1.9\% chance of winning it all (about 1-in-53)
   \end{itemize}
 \item
-  \textbf{Model Insights:} Simulation-based estimates (2.36 teams) are
+  \textbf{Model Insights:} Simulation-based estimates (2.21 teams) are
   more reliable than seed-level analytical calculations (3.75 teams)
   because simulations account for wide variation in individual team
   strength within seed groups
@@ -1624,9 +1797,9 @@ Insights}\label{individual-level-insights}
   \end{itemize}
 \item
   \textbf{Historical Contextualization:} The 2023-2024 outcome (zero
-  8-12 seeds in Sweet 16) has 5.94\% probability---genuinely unusual,
-  occurring about once every 17 years. Back-to-back occurrence is
-  extremely rare (0.35\%, or 1-in-280)
+  8-12 seeds in Sweet 16) has 6.84\% probability---genuinely unusual,
+  occurring about once every 15 years. Back-to-back occurrence is
+  extremely rare (0.47\%, or 1-in-214)
 \end{enumerate}
 
 \subsection{4.2 Interpretation and
@@ -1660,8 +1833,8 @@ Fans}\label{for-sports-media-and-fans}
   that's genuinely rare
 \item
   \textbf{Understand Variance:} Zero mid-tier seeds advancing happens
-  about once every 17 years. Back-to-back ``chalk'' tournaments (like
-  2023-2024) are extremely rare (1-in-280)
+  about once every 15 years. Back-to-back ``chalk'' tournaments (like
+  2023-2024) are extremely rare (1-in-214)
 \item
   \textbf{Individual Team Stories:} Focus on specific teams' strengths
   (λ values) rather than seed generalizations
@@ -1740,29 +1913,98 @@ Considerations}\label{limitations-and-considerations}
 \begin{enumerate}
 \def\labelenumi{\arabic{enumi}.}
 \item
-  \textbf{Single Season Data:} We use 2023-2024 season data only.
-  Multi-year models might be more robust but complicate team roster
-  continuity issues.
-\item
-  \textbf{Synthetic Seeding:} Our tournament bracket uses win\%-based
-  seeding rather than actual NCAA selection committee decisions, which
-  incorporate:
+  \textbf{Synthetic Seeding (Critical Limitation):} This analysis uses
+  \textbf{artificially generated seeds} based on Bradley-Terry λ values,
+  \textbf{not actual NCAA tournament seeds}. This is a fundamental
+  limitation that affects interpretation:
+
+  \textbf{What we did:}
 
   \begin{itemize}
   \tightlist
   \item
-    Strength of schedule adjustments
+    Ranked all teams by their aggregated Bradley-Terry strength (λ)
   \item
-    Conference tournament results
+    Assigned seeds 1-16 to the top 64 teams across four regions
   \item
-    Head-to-head records
+    Used these model-based seeds for all tournament simulations
+  \end{itemize}
+
+  \textbf{Why this matters:}
+
+  \begin{itemize}
+  \tightlist
   \item
-    Subjective evaluations of team quality
+    The NCAA selection committee uses factors beyond raw team strength:
+    strength of schedule, conference tournament performance,
+    head-to-head records, geographic considerations, and subjective
+    evaluation
+  \item
+    Real brackets may have ``overseeded'' or ``underseeded'' teams
+    relative to their true strength
+  \item
+    Our seed-specific probabilities (e.g., ``8-seeds have X\% chance'')
+    represent \textbf{strength-equivalent seeds}, not actual NCAA
+    seeding decisions
+  \item
+    Real tournament matchups would differ from our simulated bracket
+    structure
+  \end{itemize}
+
+  \textbf{Impact on results:}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    Our findings about ``how many 8-12 seeds reach Sweet 16'' are based
+    on teams that \emph{performed at the 8-12 seed strength level}, not
+    teams that the selection committee actually seeded 8-12
+  \item
+    The strength-based approach may actually be more predictive than
+    committee seeding (which can include political factors), but it's
+    not the same as analyzing real historical tournaments
+  \item
+    To apply this model to an actual tournament, you would need to use
+    the real NCAA bracket and seeds, not our synthetic ones
+  \end{itemize}
+
+  \textbf{Interpretation:} Results should be viewed as
+  \textbf{strength-based projections} showing what would happen if seeds
+  perfectly matched team quality, rather than predictions of specific
+  NCAA tournaments with committee-assigned seeds.
+\item
+  \textbf{Multi-Season Data Aggregation:} We aggregate Bradley-Terry
+  estimates across 5 seasons (2019, 2021-2024). While this provides more
+  robust estimates, it means:
+
+  \begin{itemize}
+  \tightlist
+  \item
+    Team abilities represent average strength across multiple years
+  \item
+    Roster changes, coaching changes, and program trajectory are not
+    captured
+  \item
+    Recent performance is weighted equally with older performance
+  \item
+    The ``2024 tournament'' we simulate uses aggregated multi-year data,
+    not just 2024 season performance
   \end{itemize}
 \item
   \textbf{No Tournament-Specific Data:} We exclude NCAA tournament games
   from model fitting (to avoid circular reasoning), but tournament
-  performance might reveal team qualities not visible in regular season.
+  performance might reveal team qualities not visible in regular season:
+
+  \begin{itemize}
+  \tightlist
+  \item
+    Tournament preparation may differ from regular season
+  \item
+    Single-elimination pressure creates different dynamics
+  \item
+    Travel, rest, and scheduling in tournaments differ from regular
+    season
+  \end{itemize}
 \end{enumerate}
 
 \subsubsection{Methodological
@@ -1770,22 +2012,38 @@ Considerations}\label{methodological-considerations}
 
 \begin{enumerate}
 \def\labelenumi{\arabic{enumi}.}
+\tightlist
 \item
   \textbf{Binary Win/Loss Only:} The Bradley-Terry model treats a
-  1-point win the same as a 30-point blowout. Margin-of-victory
-  extensions exist but add complexity.
+  1-point win the same as a 30-point blowout. We tested
+  margin-of-victory (MOV) extensions but found they provided no
+  improvement:
+
+  \begin{itemize}
+  \tightlist
+  \item
+    MOV as game-level weights: AIC increased by \textasciitilde4000-4500
+    (much worse)
+  \item
+    MOV as team-level covariate: AIC identical to base model (Δ = 0.0)
+  \item
+    Reason: Team strength (λ) already captures dominance through win
+    patterns; MOV is redundant (r = 0.79 correlation)
+  \end{itemize}
 \item
   \textbf{No Contextual Variables:} The model doesn't account for:
 
   \begin{itemize}
   \tightlist
   \item
-    Home court advantage in regular season (could inflate home team λ
-    estimates)
+    Home court advantage in regular season (included in game-level model
+    variant)
   \item
     Rest days between games
   \item
     Player availability
+  \item
+    Offensive/defensive ratings (tested, found redundant with λ)
   \end{itemize}
 \item
   \textbf{Independence Assumption:} Our simulation assumes win
@@ -1816,8 +2074,21 @@ Considerations}\label{methodological-considerations}
 \begin{enumerate}
 \def\labelenumi{\arabic{enumi}.}
 \item
-  \textbf{Margin of Victory Models:} Extend to predict not just win/loss
-  but score differentials
+  \textbf{Alternative Performance Metrics:} While MOV,
+  offensive/defensive ratings proved redundant with λ, other metrics
+  might add value:
+
+  \begin{itemize}
+  \tightlist
+  \item
+    Pace-adjusted efficiency ratings
+  \item
+    Four factors (shooting, turnovers, rebounding, free throws)
+  \item
+    Performance against ranked opponents
+  \item
+    Close-game win percentage
+  \end{itemize}
 \item
   \textbf{Player-Level Data:} Incorporate individual player statistics
   to handle roster changes and injuries
@@ -1825,8 +2096,18 @@ Considerations}\label{methodological-considerations}
   \textbf{Time-Varying Strength:} Allow team strength to evolve across
   the season (early-season vs.~late-season weights)
 \item
-  \textbf{Home Court Adjustment:} Model home advantage in regular season
-  games, then remove for neutral-site tournament
+  \textbf{Context-Specific Models:}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    Game-level home advantage already implemented and validates
+    neutral-site assumption
+  \item
+    Fatigue/rest effects between tournament games
+  \item
+    Momentum or ``hot-hand'' effects
+  \end{itemize}
 \end{enumerate}
 
 \subsubsection{Long-Term Research}\label{long-term-research}
@@ -1944,12 +2225,12 @@ provide rigorous answers to our research questions:
 \def\labelenumi{\arabic{enumi}.}
 \tightlist
 \item
-  \textbf{Approximately 2.36 of the 8-12 seeds should advance to the
+  \textbf{Approximately 2.21 of the 8-12 seeds should advance to the
   Sweet 16} in a typical tournament (range: 0-7, typically 1-3 teams)
 \item
-  \textbf{An 8-12 seed that reaches the Sweet 16 has an 18.1\%
-  probability of reaching the Final Four} and a 2.6\% probability of
-  winning the championship (about 1-in-38)
+  \textbf{An 8-12 seed that reaches the Sweet 16 has a 15.3\%
+  probability of reaching the Final Four} and a 1.9\% probability of
+  winning the championship (about 1-in-53)
 \end{enumerate}
 
 Beyond these aggregate findings, our \textbf{individual team probability
@@ -1964,11 +2245,11 @@ analysis} reveals:
   season performance explains these differences.
 \item
   \textbf{Historical context matters:} The 2023-2024 observation of zero
-  8-12 seeds in the Sweet 16 has a 5.94\% probability under our
-  model---genuinely unusual, occurring about once every 17 years. The
-  back-to-back occurrence is extremely rare (0.35\%, or 1-in-280).
+  8-12 seeds in the Sweet 16 has a 6.84\% probability under our
+  model---genuinely unusual, occurring about once every 15 years. The
+  back-to-back occurrence is extremely rare (0.47\%, or 1-in-214).
 \item
-  \textbf{Methodological insight:} Simulation-based estimates (2.36
+  \textbf{Methodological insight:} Simulation-based estimates (2.21
   teams) provide more accurate predictions than seed-level analytical
   calculations (3.75 teams) because simulations account for the full
   distribution of team strengths within each seed, including very weak
@@ -2023,7 +2304,7 @@ cannot perfectly predict single-elimination variance. But by
 understanding the \emph{distribution} of possible outcomes, we can
 better appreciate when something genuinely unusual occurs. The
 back-to-back drought of mid-tier seeds was not just random
-variation---it was a genuinely rare event (1-in-280) that demonstrated
+variation---it was a genuinely rare event (1-in-214) that demonstrated
 exceptional top-seed dominance unlikely to persist.
 
 These findings provide a quantitative framework for understanding
@@ -2228,7 +2509,7 @@ For synthetic seeding:
 
 \begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
 
-\emph{Report generated: 2025-11-01}
+\emph{Report generated: 2025-11-03}
 
 \emph{Course: STAT 479 - Sports Analytics, University of
 Wisconsin-Madison}

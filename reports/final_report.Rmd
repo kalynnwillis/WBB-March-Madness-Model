@@ -1,7 +1,7 @@
 ---
 title: "Women's Basketball March Madness: Bradley-Terry Model Analysis"
 subtitle: "Analyzing Mid-Tier Seed (8-12) Advancement Probabilities"
-author: "Kalynn Willis, Jasmine, Ellie"
+author: "Kalynn Willis, Jasmine Peck, Ellie Brothers"
 date: "`r Sys.Date()`"
 output:
   html_document:
@@ -97,41 +97,13 @@ This analysis uses **synthetic tournament seeds** based on team strength (Bradle
 
 ## 1.1 Motivation and Problem Statement
 
-The NCAA Division I Women's Basketball Tournament, colloquially known as "March Madness," is an annual single-elimination tournament featuring 64 teams seeded 1-16 across four regional brackets. Understanding tournament dynamics—particularly the advancement patterns of mid-tier seeds—has practical value for:
+The NCAA Women’s Basketball tournament, often called March Madness, includes 64 teams and engages viewers across the United States each year through March Madness bracket creation. Individuals take educated guesses as to which teams will win each game and eventually the entire tournament, and because of the single-elimination format, these unpredictable games with frequent upsets are very engaging. In each of the four regions, 16 teams are seeded based on their rankings. Understanding the probability of upsets, which occurs when a lower seeded team wins against a higher-seeded team, is valuable for bracket predictions, how competitive the two teams are, and identifying over or under seeded teams.
 
-- **Sports Analytics:** Quantifying competitive balance and upset potential
-- **Bracket Prediction:** Informed probabilistic forecasting
-- **Team Evaluation:** Identifying over/under-seeded teams
-- **Media and Fans:** Setting appropriate expectations for underdog stories
+In theory, if every seed was correct with 100% accuracy, no team seeded higher than a 4 seed would make it to the Sweet 16. But in reality, we know upsets occur – for example, consider the Duke (#7 seed) versus Ohio State (#2 seed) Women’s March Madness second round game in 2024. Unexpectedly, Duke came out on top in a 75-63 point victory, their advancement to the Sweet 16. Many individuals would have had Ohio State advancing in their brackets. In addition, it makes us wonder if Duke and Ohio State were more competitive than the average game between a 7 and 2 seed, so it would be valuable to know the probability that Duke would win (or any other underdog) for the future.
 
-## 1.2 Why Focus on 8-12 Seeds?
+## 1.2 Research Questions
 
-Seeds 8-12 occupy a strategic middle ground in tournament analysis:
-
-1. **Not Automatic Exits:** Unlike 13-16 seeds (which rarely win first-round games), 8-12 seeds have realistic chances to win at least one game
-2. **Not Overwhelming Favorites:** Unlike 1-4 seeds (which typically dominate early rounds), 8-12 seeds face genuine competitive challenges
-3. **Upset Potential:** These teams represent the "Cinderella" sweet spot—capable of deep runs but facing long odds
-4. **Practical Relevance:** Understanding this tier helps calibrate reasonable expectations vs. hype
-
-## 1.3 Research Questions
-
-This analysis addresses two primary research questions:
-
-**Research Question 1:** How many of the 8-12 seeds should we expect to advance past the second round (to the Sweet 16)?
-
-**Research Question 2:** Given that a team seeded 8-12 advanced past the second round, what is the probability they reach the finals or win the championship?
-
-Additionally, we extend the analysis to:
-
-- Calculate **individual team probabilities** for each specific 8-12 seed
-- Contextualize the 2023-2024 historical outcome (zero 8-12 seeds in Sweet 16)
-- Validate analytical predictions with Monte Carlo simulation
-
-## 1.4 Historical Context and Scope
-
-In both the 2023 and 2024 NCAA Women's Basketball Tournaments, **no teams seeded 8-12 reached the Sweet 16**. This unprecedented back-to-back occurrence motivates our analysis: Is this outcome statistically unusual, or should we expect such scenarios regularly?
-
-**Important Note on Scope:** This analysis uses **synthetic tournament seeds** based on team strength (Bradley-Terry λ values) to understand the *expected* dynamics of mid-tier seeds in tournaments. We do not analyze actual historical NCAA tournament brackets. Instead, we ask: "Given team strengths derived from regular season play, what should we expect from teams at the 8-12 seed strength level?" This approach provides insight into tournament dynamics under optimal seeding, though real NCAA committee decisions may deviate from pure strength-based rankings. See Section 2.2 and Section 4.3 for detailed discussion of this methodological choice and its implications.
+We were curious to take a more in-depth look at teams lying within the bottom half of the rankings, but still strong enough to potentially make an impact on the March Madness brackets (seed 8 – 12 in all 4 regions). Specifically, we ask how many of the 8 - 12 seeds should be expected to advance to the Sweet 16 and if they advance past the second round, what the chance is that they make it all the way to the final. This is interesting because they are not automatic first-round losers or overwhelming favorites – individuals making bracket predictions may want to place bets in the 8 - 12 seeds if the probabilities of them winning are high enough to take the underdog. In both the 2023 and 2024 Women’s March Madness seasons, there wasn’t a single team seeded 8 - 12 that advanced to the Sweet 16, so we are curious how often we should expect this result.
 
 ---
 
@@ -141,28 +113,26 @@ In both the 2023 and 2024 NCAA Women's Basketball Tournaments, **no teams seeded
 
 ### Model Specification
 
-The Bradley-Terry model is a probabilistic framework for modeling pairwise comparisons. For teams $i$ and $j$ with latent strength parameters $\lambda_i$ and $\lambda_j$, the probability that team $i$ defeats team $j$ is:
+We use the Bradley-Terry model as a probabilistic framework that models pairwise comparisons, which in this case are the pairwise game outcomes (which women’s NCAA team will win). For teams I and J with latent strength parameters $\lambda_i$ and $\lambda_j$, the probability that Team I will beat Team J is the following:
 
 $$
 P(\text{team } i \text{ beats team } j) = \frac{e^{\lambda_i}}{e^{\lambda_i} + e^{\lambda_j}} = \frac{1}{1 + e^{-(\lambda_i - \lambda_j)}}
 $$
 
-**Key Properties:**
+To explain the above model, lambda is an estimated team strength parameter that will linearly affect a team’s log-odds of winning. For example, for Team I and Team J, $\lambda_i$ represents the log-strength of Team I. The larger the lambda, the stronger the team. The win probability between Team I and J depends on the difference of their lambda values (the larger the difference, the more probable it is that one team will win over the other). 
 
-- $\lambda_i$ represents the log-strength of team $i$
-- Higher $\lambda$ indicates stronger team
-- The model is invariant to additive constants (we fix one reference team at $\lambda = 0$)
-- Win probability depends only on the **difference** $\lambda_i - \lambda_j$
+### Synthetic Tournament Seeds
+
+For the construction of our model, we used synthetic tournament seeds based on the team strength generated by Bradley-Terry lambda values. We do not analyze historical Women’s March Madness brackets, but use the regular season games to predict how teams seeded 8 - 12 will perform in the March Madness tournament.
+
+We assigned seeds 1 - 16 to the top 64 teams generated by our Bradley-Terry latent strength parameters across the five seasons. It is important to note that this excludes the actual NCAA committee-selected seeds, which could be affected by varying factors including geographic restrictions, conference tournament results, or any subjective decisions. This matters for our analysis because the seed-specific probabilities (including those 8 - 12) are assigned by the lambda values rather than the actual historical rankings. 
+
+We chose this approach because it allows for an unbiased analysis of predictions of the March Madness tournament, demonstrating the results if there were “perfect seeding” in terms of how good the Bradley-Terry model found each team to be.
+
 
 ### Covariates Considered and Model Comparison
 
-Following Professor Deshpande's recommendation, we compared the predictive performance of multiple models rather than relying solely on AIC.
-
-**Tested covariates:**
-- **Offensive rating**: Points scored per game
-- **Defensive rating**: Points allowed per game
-- **Net rating**: Point differential per game
-- **Margin of victory (MOV)**: Average winning margin
+Our model adds a home team indicator variable to control for potential advantage of playing at home. We explored implementing further covariates to enhance our base Bradley-Terry model. For instance, each team’s lambda may vary by a team’s offensive and defensive abilities. We ran models with a defensive rating (points allowed per game), offensive rating (points scored per game), point differential per game and the margin of victory to see if any of these models would be more robust than our base Bradley-Terry model. 
 
 **Models Evaluated:**
 
@@ -184,7 +154,7 @@ We fit five models and compared their **predictive performance** on a holdout te
 | MOV | 69.89% | 0.5779 | 0.1970 | 0.0092 |
 | Combined | 69.89% | 0.5779 | 0.1970 | 0.0092 |
 
-All models show **identical predictive performance** across all metrics. This is not a computational error—it reflects genuine redundancy.
+Following Professor Deshpande's recommendation, we compared the predictive performance of multiple models rather than relying solely on AIC. We utilized multiple model comparisons including Log-Loss, Brier Score, and Calibration MSE. The model comparison tests all generated the same results (Log-Loss = 0.5779, Brier Score = 0.1970, Calibration MSE = 0.0092), indicating redundancy in the covariates. Given that the covariates did not return more accurate predictions than our base model, we proceed with the base Bradley-Terry model for simplicity throughout our analysis. 
 
 ```{r lambda-comparison, echo=FALSE, fig.cap="Team abilities (lambda) from base model vs. covariate model show strong correlation (r = 0.85), but predictions are identical because relative team differences remain unchanged."}
 knitr::include_graphics(here("results", "figures", "18_lambda_comparison.png"))
@@ -192,37 +162,17 @@ knitr::include_graphics(here("results", "figures", "18_lambda_comparison.png"))
 
 **Why are covariates redundant?**
 
-1. **High correlation:** Team strength (λ) correlates strongly with performance metrics:
-   - λ vs. Net Rating: **r = 0.76**
-   - λ vs. Offensive Rating: **r = 0.76**
-   - λ vs. Defensive Rating: **r = -0.17**
-
-2. **Information already captured:** The Bradley-Terry λ parameters encode team quality through win/loss patterns against opponents of varying strength. Teams that score more points (high offensive rating) naturally win more games, which increases their λ. Adding explicit offensive/defensive covariates provides no new information.
-
-3. **Prediction mechanism:** Tournament predictions use `P(win) = 1/(1 + exp(-(λ_i - λ_j)))`. Even though covariate models alter absolute λ values, the **relative differences** between teams (what matters for predictions) remain nearly identical.
+The covariates are redundant because the team strength (λ) correlates strongly with the performance metrics. For exmaple, teams with a higher offensive rating that score more points, will win more games, which increases their generated λ. Implementing these covariates into the model doesn't add new information. 
 
 **Model Selection Justification:**
 
-We use the **Base Model** (`team + home_advantage`) because:
+The Bradley-Terry model measuring the team lambda and home advantage is the optimal choice for our model. This is because it is simpler and thus more interpretable. Because there are fewer parameters, this base model will reduce overfitting risk compared to the other models we generated.
 
-- ✓ **Same predictive accuracy** as complex models (69.89% on test set)
-- ✓ **Same log-loss** (0.5779) and calibration (MSE = 0.0092)
-- ✓ **Simpler and more interpretable** (fewer parameters)
-- ✓ **Follows Occam's Razor:** Prefer simpler models when performance is equal
-- ✓ **More robust:** Fewer parameters reduce overfitting risk
-
-This finding aligns with Bradley-Terry theory: team fixed effects naturally absorb variance explained by team-level covariates when those covariates are derived from the same game outcomes used to estimate team strengths.
-
-### Advantages for Tournament Analysis
-
-1. **Handles incomplete matchups:** Not every team plays every other team
-2. **Strength transitivity:** If A beats B and B beats C, model appropriately adjusts A's advantage over C
-3. **Uncertainty quantification:** Standard errors on $\lambda$ estimates allow confidence intervals
-4. **Probabilistic predictions:** Naturally produces win probabilities for any matchup
+In general, the Bradley-Terry model has many benefits when analyzing the March Madness bracket including generating results even though not all teams play each other. Also, the probabilistic predictions will allow explanations of which team is stronger through generating win probabilities for each matchup.
 
 ### Model Fitting
 
-We fit the Bradley-Terry model using maximum likelihood estimation via the `BradleyTerry2` R package. The log-likelihood for $n$ games is:
+We create the Bradley-Terry model using maximum likelihood estimation to create a log-likelihood model for each game. The log-likelihood for $n$ games is:
 
 $$
 \ell(\lambda) = \sum_{k=1}^{n} \left[ \lambda_{i_k} - \log(e^{\lambda_{i_k}} + e^{\lambda_{j_k}}) \right]
@@ -230,7 +180,7 @@ $$
 
 where game $k$ was won by team $i_k$ over team $j_k$.
 
-We fit **separate Bradley-Terry models for each season**, then aggregate results using inverse-variance weighting. This approach accounts for year-to-year variation while providing stable estimates:
+We fit separate Bradley-Terry models for each season because each seasonal tournament has different teams at different seeds. After fitting these models, we aggregate our results using inverse-variance weighting – which means we give more weight to the results that are more precise. 
 
 ```{r bt-model-fitting-code, eval=FALSE}
 # From scripts/02_bradley_terry_model.R
@@ -362,23 +312,7 @@ if (!is.null(team_abilities) && !is.null(games_cleaned)) {
 
 ### Data Source and Collection
 
-**Source:** Women's NCAA Basketball data via the `wehoop` R package
-
-**Scope:** Regular season games from 2019, 2021-2024 seasons (5 seasons total)
-  - Note: 2020 season excluded due to COVID-19 disruptions
-  - Multi-season data provides more robust team strength estimates
-  - Separate Bradley-Terry models fit per season, then aggregated
-
-**Dataset Statistics:**
-
-- Total teams analyzed: `r if(!is.na(n_teams)) n_teams else "N/A"`
-- Total games: `r if(!is.na(n_games)) n_games else "N/A"`
-- Tournament teams: `r if(!is.na(n_tournament_teams)) n_tournament_teams else "N/A"`
-- Teams with 8-12 seeds: `r if(!is.na(n_mid_tier)) n_mid_tier else "N/A"`
-
-### Data Collection Process
-
-We begin by loading game schedules for five seasons (2019, 2021-2024). The `wehoop` package provides comprehensive game-level data from ESPN, including scores, dates, and team identifiers.
+After fitting the model, we collected our data using the wehoop R package (which includes comprehensive game-level data from ESPN) and pulled the Women’s NCAA Basketball data for 5 total seasons: 2019 and 2021-2024. We chose to exclude 2020 due to potential disruptions from COVID-19. In total, we analyzed 372 teams with 10808 total games. Throughout the 5 seasons there were 20 teams with 8 - 12 seeds.
 
 ```{r data-collection-code, eval=FALSE}
 # From scripts/01_data_collection_UPDATED.R
@@ -679,52 +613,10 @@ readr::write_csv(mid_tier_seeds, here("data", "processed", "mid_tier_seeds.csv")
 saveRDS(mid_tier_seeds, here("data", "processed", "mid_tier_seeds.rds"))
 ```
 
-### ⚠️ Critical Limitation: Synthetic Seeding
-
-This analysis uses **artificially generated tournament seeds**, not actual NCAA tournament data. This is a fundamental limitation that affects how results should be interpreted.
-
-**What We Did:**
-- Ranked all teams by their Bradley-Terry strength (λ) aggregated across 5 seasons (2019, 2021-2024)
-- Assigned seeds 1-16 to the top 64 teams across four regions based purely on team strength
-- Simulated tournaments using these model-based seeds
-
-**What We Did NOT Do:**
-- Use actual NCAA selection committee seeds from real tournaments
-- Account for conference tournament results, geographic placement, or selection committee subjective decisions
-- Analyze historical tournament outcomes with real brackets
-
-**Why This Matters:**
-- Our results answer: "What if seeds perfectly matched team strength?"—not "What happened in real NCAA tournaments?"
-- Real committee seeding may over-seed or under-seed teams based on factors beyond pure performance
-- Seed-specific probabilities (e.g., "8-seeds have 12% chance of Sweet 16") refer to **strength-equivalent 8-seeds**, not actual committee-assigned 8-seeds
-- Real bracket matchups would differ from our simulated structure
-
-**Advantages of This Approach:**
-- Strength-based seeding removes committee bias and politics
-- Accounts for opponent-adjusted strength (strength of schedule), not just win percentage
-- Provides "ground truth" baseline of what tournament outcomes would look like with perfect seeding
-- More predictive than committee seeding in some cases (e.g., identifying over/under-seeded teams)
-
-**To Use This Model on Real Tournaments:**
-- Replace synthetic seeds with actual NCAA bracket assignments
-- Re-run simulations using committee-assigned matchups
-- Compare predictions against actual outcomes for validation
-
-**Interpretation:** Results represent **strength-based projections** showing expected outcomes under optimal seeding, not historical tournament analysis. See Section 4.3 for detailed discussion of this limitation and its implications.
 
 ## 2.3 Analysis Approach
 
-Our analysis consists of three complementary components:
-
-### 1. Bradley-Terry Model Estimation
-
-Fit latent team strength parameters $\lambda_i$ for all Division I teams using regular season game data.
-
-**Output:** Team strength estimates with standard errors
-
-### 2. Analytical Probability Calculations
-
-For each tournament matchup, calculate exact win probabilities using:
+Our analysis begins by fitting each latent team strength parameter lambda for all D1 teams using the regular seasons data. Next, for each tournament matchup, we calculate the win probabilities for each 8-12 seed matchups using:
 
 $$
 P(\text{win}) = \frac{1}{1 + e^{-(\lambda_i - \lambda_j)}}
@@ -921,11 +813,7 @@ saveRDS(key_results, here("results", "tables", "key_results.rds"))
 
 **Output:** Seed-level summary statistics and conditional probabilities
 
-### 3. Monte Carlo Tournament Simulation
-
-Simulate complete 64-team single-elimination tournaments 5,000 times using Bradley-Terry win probabilities.
-
-We implement a fast, vectorized simulation function that processes entire rounds simultaneously:
+Then, we simulate the 64-teams single elimination March Madness tournaments 5,000 times using Bradley-Terry win probabilities:
 
 ```{r simulation-code, eval=FALSE}
 # From scripts/04_tournament_simulation.R
@@ -1157,21 +1045,6 @@ saveRDS(mid_tier_summary, here("results", "tables", "simulation_summary.rds"))
 write_csv(mid_tier_counts, here("results", "tables", "mid_tier_counts_by_sim.csv"))
 ```
 
-**Output:** Empirical distributions of 8-12 seed advancement by round, conditional probabilities, validation of analytical estimates
-
-### Why Both Analytical and Simulation?
-
-- **Analytical:** Exact for simple probabilities (first round), computationally efficient
-- **Simulation:** Handles complex dependencies (later rounds depend on earlier upsets), provides distributional information
-- **Cross-validation:** Agreement between methods validates model assumptions
-
-## 2.4 Computational Details
-
-- **Software:** R 4.x
-- **Key Packages:** `tidyverse`, `BradleyTerry2`, `wehoop`, `here`
-- **Simulations:** 5,000 Monte Carlo replications
-- **Random Seeds:** Set for reproducibility (`set.seed(479 + iteration)`)
-- **Hardware:** Standard laptop (simulations complete in ~5-10 minutes)
 
 ---
 

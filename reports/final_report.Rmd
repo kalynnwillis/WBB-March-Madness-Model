@@ -455,6 +455,41 @@ We fit five models and compared their predictive performance on a holdout test s
 
 We compared the predictive performance of multiple models rather than relying solely on AIC. We utilized multiple model comparisons including Log-Loss, Brier Score, and Calibration MSE. The model comparison tests all generated the same results (Log-Loss = 0.5779, Brier Score = 0.1970, Calibration MSE = 0.0092), indicating redundancy in the covariates. Given that the covariates did not return more accurate predictions than our base model, we proceed with the base Bradley-Terry model for simplicity throughout our analysis. 
 
+```{r lambda-comparison-code, eval=FALSE}
+# From scripts/09_model_comparison.R
+team_abilities_base <- readRDS(here("data", "processed", "team_abilities_with_seeds.rds"))
+team_abilities_cov <- readRDS(here("data", "processed", "team_abilities_with_seeds_cov.rds"))
+
+comparison <- team_abilities_base %>%
+    select(team, lambda_base = lambda, seed) %>%
+    inner_join(
+        team_abilities_cov %>% select(team, lambda_cov = lambda),
+        by = "team"
+    )
+
+cor_value <- cor(comparison$lambda_base, comparison$lambda_cov, use = "complete.obs")
+
+p <- ggplot(comparison, aes(x = lambda_base, y = lambda_cov)) +
+    geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "gray40") +
+    geom_point(alpha = 0.5, color = "#0072B2") +
+    annotate("text", x = min(comparison$lambda_base, na.rm = TRUE) + 0.5, 
+             y = max(comparison$lambda_cov, na.rm = TRUE) - 0.5,
+             label = sprintf("r = %.3f", cor_value), 
+             size = 5, fontface = "bold") +
+    coord_fixed() +
+    labs(
+        title = "Team Abilities: Base Model vs. Covariate Model",
+        subtitle = "High correlation → covariates add no predictive value",
+        x = "Lambda (Base Model: Team + Home)",
+        y = "Lambda (Covariate Model: Team + Home + Covariates)"
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(plot.title = element_text(face = "bold"))
+
+ggsave(here("results", "figures", "18_lambda_comparison.png"),
+       p, width = 8, height = 8, dpi = 300)
+```
+
 ```{r lambda-comparison, echo=FALSE, fig.cap="Team abilities (lambda) from base model vs. covariate model show strong correlation (r = 0.85), but predictions are identical because relative team differences remain unchanged."}
 knitr::include_graphics(here("results", "figures", "18_lambda_comparison.png"))
 ```
@@ -547,7 +582,6 @@ all_abilities_scaled <- all_abilities %>%
     ) %>%
     ungroup()
 
-# Aggregate using inverse-variance weighting
 team_abilities_df <- all_abilities_scaled %>%
     group_by(team) %>%
     summarise(
@@ -559,7 +593,7 @@ team_abilities_df <- all_abilities_scaled %>%
     ) %>%
     arrange(desc(lambda))
 
-# Compute win probability matrix (neutral site)
+# Compute win probability matrix 
 lambda_vec <- setNames(team_abilities_df$lambda, team_abilities_df$team)
 lambda_diff <- outer(X = lambda_vec, Y = lambda_vec, FUN = "-")
 win_probs <- 1 / (1 + exp(-1 * lambda_diff))
@@ -583,7 +617,7 @@ team_abilities_with_seeds <- team_abilities_df %>%
         )
     )
 
-# Summary Statistics
+# Summary Stats
 seed_summary <- team_abilities_with_seeds %>%
     filter(!is.na(seed)) %>%
     group_by(seed_category) %>%
@@ -837,7 +871,6 @@ write_csv(conditional_summary,
     file = here("results", "tables", "conditional_summary.csv")
 )
 
-# Save key results
 key_results <- list(
     expected_advance_r32 = expected_advance_r32,
     expected_in_sweet16 = expected_in_sweet16,

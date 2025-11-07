@@ -793,7 +793,7 @@ write_csv(mid_tier_counts, here("results", "tables", "mid_tier_counts_by_sim.csv
 
 ---
 
-# 3. Results
+# Results
 
 For a tournament, we expect around 2-3 teams (seeds 8-12) to get to the Sweet 16. Our simulations align with this posturization, with an average of 2.21 teams advancing as the tournaments have about 1-3 mid-tier seeds advance. In the 2023-24 season, where no teams in seeds 8-12 advanced, the probability of occurring was about 6.8%.
 
@@ -859,18 +859,20 @@ if (!is.null(key_results) && !is.null(key_results$first_round_summary)) {
             `Expected Wins` = sprintf("%.2f", `Expected Wins`)
         )
 
-    kable(first_round_summary
-    ) %>%
+    kable(first_round_summary) %>%
         kable_styling(bootstrap_options = c("striped", "hover"))
 }
 ```
 
 We find that for an almost even match:
+
 - 8 seeds versus 9 seeds: 49% Win Probability
 - 9 seeds versus 8 seeds: 51% Win Probability
+
 These close win probabilities show that 8 seeds versus 9 seeds have unpredictable first-round games.
 
 However, for an uneven match:
+
 - 10 seeds versus 7 seeds: 34% Win Probability
 - 12 seeds versus 5 seeds: 25% Win Probability
 
@@ -902,7 +904,8 @@ if (!is.null(key_results) && !is.null(key_results$second_round_summary)) {
             `Expected in Sweet 16` = sprintf("%.2f", `Expected in Sweet 16`)
         )
 
-    kable(advancement)"
+    kable(advancement,
+        caption = "Sweet 16 Advancement Probabilities by Seed"
     ) %>%
         kable_styling(bootstrap_options = c("striped", "hover"))
 }
@@ -986,18 +989,29 @@ We will now compare our predicted versus actual results to the NCAA outcomes of 
 
 ## Limitations & Improvements
 
-The data limitations we encountered were:
--  Neutral game locations: We assume by the data that the tournament games are at neutral sites, but some teams may be located closer to the locations than others, which creates a temporary home-court advantage for some teams to have more support than others.
--  Excluded NCAA tournament games: We wanted to avoid fitting the model using tournament performance, as that would overvalidate our results and not predict based on regular-season performance.However, tournament performance may have skills and team strength qualities that were not apparent in regular-season games.
--  Aggregate data across seasons: Our estimates include data from 5 total seasons (2019 and 2021-2024), which means we show the team’s strength across years. Our estimated team strength is represented as an average across multiple years, which does not account for team composition or coach changes. Thus, the estimated results of the 2024 tournament capture simulated data from the prior seasons, rather than just the 2024 season.
--  Our seeds are simulated based on team strength (Bradley-Terry lambda values): The data does not provide the NCAA’s tournament seeds, which are determined by schedule strength, location, quality wins/losses, etc., so our seeds would not match. Thus, our seeds are interpreted as if seeding were to perfectly match team strength (versus observed tournament seeds). As a result, our estimate to the question about “how many 8-12 seeds advance onto the Sweet Sixteen” is decided by which teams have the seed 8-12 team strength level. The interpretation of our results should reflect that these are strength-based estimates if the seeds matched team strength.
+### Data Limitations
 
+The data limitations we encountered were:
+
+- **Neutral game locations**: We assume by the data that the tournament games are at neutral sites, but some teams may be located closer to the locations than others, which creates a temporary home-court advantage for some teams to have more support than others.
+
+- **Excluded NCAA tournament games**: We wanted to avoid fitting the model using tournament performance, as that would overvalidate our results and not predict based on regular-season performance. However, tournament performance may have skills and team strength qualities that were not apparent in regular-season games.
+
+- **Aggregate data across seasons**: Our estimates include data from 5 total seasons (2019 and 2021-2024), which means we show the team's strength across years. Our estimated team strength is represented as an average across multiple years, which does not account for team composition or coach changes. Thus, the estimated results of the 2024 tournament capture simulated data from the prior seasons, rather than just the 2024 season.
+
+- **Seeds based on team strength**: The data does not provide the NCAA's tournament seeds, which are determined by schedule strength, location, quality wins/losses, etc., so our seeds would not match. Thus, our seeds are interpreted as if seeding were to perfectly match team strength (versus observed tournament seeds). As a result, our estimate to the question about "how many 8-12 seeds advance onto the Sweet Sixteen" is decided by which teams have the seed 8-12 team strength level. The interpretation of our results should reflect that these are strength-based estimates if the seeds matched team strength.
+
+### Future Improvements
 
 To improve, we found 4 strategies:
--  An improvement for the future is to include the observed WNCAA brackets rather than our strength-based seeds.
-- We can weight the team strength estimates in relation to the estimated strength of the opponents; if a team plays a significantly worse team, their outcome reflects the blowout win as less impactful to their team strength estimate.
-- To adjust for team-composition changes in the roster, we can incorporate player-level data when they leave or are added to a team.
-- We can weight by time, as teams usually evolve throughout the season by building stronger bonds and efficient team dynamics.
+
+- **Include observed WNCAA brackets**: An improvement for the future is to include the observed WNCAA brackets rather than our strength-based seeds.
+
+- **Weight by opponent strength**: We can weight the team strength estimates in relation to the estimated strength of the opponents; if a team plays a significantly worse team, their outcome reflects the blowout win as less impactful to their team strength estimate.
+
+- **Incorporate player-level data**: To adjust for team-composition changes in the roster, we can incorporate player-level data when they leave or are added to a team.
+
+- **Weight by time**: We can weight by time, as teams usually evolve throughout the season by building stronger bonds and efficient team dynamics.
 
 ---
 

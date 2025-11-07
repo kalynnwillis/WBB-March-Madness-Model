@@ -847,6 +847,8 @@ Not all teams with the same seed are equally strong. Understanding this variabil
 knitr::include_graphics(here("results", "figures", "03_first_round_probabilities.png"))
 ```
 
+**Note on methodology**: The figure above displays simulation-based probabilities (averaged across 5,000 full tournament simulations), while the table below shows analytical probabilities (calculated directly from Bradley-Terry model matchup predictions). The simulation approach accounts for the full tournament structure and variability across many iterations, while the analytical approach provides direct pairwise win probabilities. Both methods are valid and complement each other—the small differences between them reflect the inherent uncertainty in tournament outcomes.
+
 ```{r first-round-table, echo=FALSE}
 if (!is.null(key_results) && !is.null(key_results$first_round_summary)) {
     first_round_summary <- key_results$first_round_summary %>%
@@ -859,7 +861,9 @@ if (!is.null(key_results) && !is.null(key_results$first_round_summary)) {
             `Expected Wins` = sprintf("%.2f", `Expected Wins`)
         )
 
-    kable(first_round_summary) %>%
+    kable(first_round_summary,
+        caption = "Analytical First Round Win Probabilities by Seed"
+    ) %>%
         kable_styling(bootstrap_options = c("striped", "hover"))
 }
 ```
@@ -891,14 +895,14 @@ if (!is.null(key_results) && !is.null(key_results$second_round_summary)) {
     advancement <- key_results$second_round_summary %>%
         select(
             Seed = seed, `N Teams` = n_teams,
-            `P(Round 2 Win | Round 1 Win)` = avg_prob_win_r2_conditional,
+            `P(Round 2 Win given Round 1 Win)` = avg_prob_win_r2_conditional,
             `P(Sweet 16)` = avg_prob_reach_sweet16,
             `Expected in Sweet 16` = expected_in_sweet16
         ) %>%
         mutate(
-            `P(Round 2 Win | Round 1 Win)` = sprintf(
+            `P(Round 2 Win given Round 1 Win)` = sprintf(
                 "%.1f%%",
-                `P(Round 2 Win | Round 1 Win)` * 100
+                `P(Round 2 Win given Round 1 Win)` * 100
             ),
             `P(Sweet 16)` = sprintf("%.1f%%", `P(Sweet 16)` * 100),
             `Expected in Sweet 16` = sprintf("%.2f", `Expected in Sweet 16`)

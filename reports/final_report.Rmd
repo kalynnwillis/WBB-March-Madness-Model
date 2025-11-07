@@ -45,6 +45,11 @@ read_if_exists <- function(path) {
 }
 ```
 
+```{r load-results, echo=FALSE}
+key_results <- read_if_exists(here("results", "tables", "key_results.rds"))
+sweet16_probs <- read_if_exists(here("results", "tables", "sweet16_mid_tier_probabilities.csv"))
+```
+
 # Executive Summary 
 
 The NCAA Women’s Basketball Tournament takes place in March, which makes it considered March Madness. While generally, people assume that the mid- to high-tier teams make it to the “Sweet Sixteen” (Top 16 teams in the tournament), in 2024, that did not happen, as no mid-tier teams made it to the Top 16. The question we want to answer is if a team ranked 8-12 advances to the second round, what is the chance they make it to the finals (or even win)?

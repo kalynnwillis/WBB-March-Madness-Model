@@ -32,7 +32,6 @@ library(here)
 library(knitr)
 library(kableExtra)
 
-# Helper function for safe file reading
 read_if_exists <- function(path) {
     if (file.exists(path)) {
         if (grepl("\\.rds$", path)) {
@@ -120,10 +119,182 @@ if (!requireNamespace("wehoop", quietly = TRUE)) {
 }
 library(wehoop)
 
-# Load and process data from wehoop
-raw <- wehoop::load_wbb_schedule(seasons = SEASONS)
+pick_first <- function(cands, nm) {
+    hit <- intersect(cands, nm)
+    if (length(hit)) hit[1] else NA_character_
+}
 
-# ... (see scripts/01_data_collection_UPDATED.R for complete code)
+raw <- wehoop::load_wbb_schedule(seasons = SEASONS)
+stopifnot(is.data.frame(raw), nrow(raw) > 0)
+
+nm <- names(raw)
+cat("Columns returned by wehoop:\n")
+print(nm)
+
+date_col <- pick_first(c("game_date", "start_date", "date"), nm)
+season_col <- pick_first(c("season", "season_year"), nm)
+id_col <- pick_first(c("game_id", "id", "espn_game_id"), nm)
+
+home_team_col <- pick_first(c(
+    "home_display_name", "home_name", "home_location", "home_short_display_name",
+    "home_team", "home_team_name", "home_team_display_name", "home_team_short_display_name"
+), nm)
+
+away_team_col <- pick_first(c(
+    "away_display_name", "away_name", "away_location", "away_short_display_name",
+    "away_team", "away_team_name", "away_team_display_name", "away_team_short_display_name"
+), nm)
+
+home_score_col <- pick_first(c("home_score", "home_points", "home_team_score"), nm)
+away_score_col <- pick_first(c("away_score", "away_points", "away_team_score"), nm)
+
+neutral_col <- pick_first(c("neutral_site", "neutral", "is_neutral_site", "site_neutral"), nm)
+type_col <- pick_first(c("season_type", "game_type", "tournament_type", "conference_competition"), nm)
+
+must_have <- c(date_col, season_col, home_team_col, away_team_col)
+if (any(is.na(must_have))) {
+    stop("Critical columns missing after remapping.")
+}
+
+games_combined <- raw |>
+    transmute(
+        game_id = if (!is.na(id_col)) as.character(.data[[id_col]]) else NA_character_,
+        season = suppressWarnings(as.integer(.data[[season_col]])),
+        game_date = suppressWarnings(lubridate::ymd(.data[[date_col]])),
+        home_team = as.character(.data[[home_team_col]]),
+        away_team = as.character(.data[[away_team_col]]),
+        home_score = if (!is.na(home_score_col)) suppressWarnings(as.integer(.data[[home_score_col]])) else NA_integer_,
+        away_score = if (!is.na(away_score_col)) suppressWarnings(as.integer(.data[[away_score_col]])) else NA_integer_,
+        neutral_site = if (!is.na(neutral_col)) {
+            val <- .data[[neutral_col]]
+            as.integer(val %in% c(TRUE, 1, "1", "TRUE", "True", "true", "Neutral", "NEUTRAL"))
+        } else {
+            0L
+        },
+        season_type = if (!is.na(type_col)) .data[[type_col]] else NA,
+        game_type_raw = if (!is.na(type_col)) as.character(.data[[type_col]]) else NA_character_
+    ) |>
+    distinct(game_id, .keep_all = TRUE)
+
+# D-I NORMALIZATION
+normalize_name <- function(x) stringr::str_squish(stringr::str_to_lower(x))
+
+n_games_before_d1 <- nrow(games_combined)
+
+d1_teams <- tryCatch(
+    suppressMessages(purrr::map_dfr(SEASONS, wehoop::espn_wbb_teams)),
+    error = function(e) NULL
+)
+
+if (is.null(d1_teams) || !"team_id" %in% names(d1_teams)) {
+    games_norm <- games_combined
+} else {
+    nm_t <- names(d1_teams)
+    name_col <- pick_first(c("display_name", "short_display_name", "name", "team", "school"), nm_t)
+    class_col <- pick_first(c("classification", "org", "org_type"), nm_t)
+    div_col <- pick_first(c("division", "division_name", "division_short"), nm_t)
+
+    wbb_di <- d1_teams |>
+        dplyr::mutate(
+            .team_name = if (!is.na(name_col)) .data[[name_col]] else NA_character_,
+            .class     = if (!is.na(class_col)) .data[[class_col]] else NA_character_,
+            .div       = if (!is.na(div_col)) .data[[div_col]] else NA_character_
+        ) |>
+        dplyr::filter(
+            is.na(.class) | stringr::str_detect(tolower(.class), "ncaa"),
+            is.na(.div) | stringr::str_detect(tolower(.div), "^(1|i|division i)\\b")
+        ) |>
+        dplyr::transmute(
+            di_team = .team_name,
+            di_key = normalize_name(.team_name)
+        ) |>
+        dplyr::distinct() |>
+        dplyr::filter(!is.na(di_key), di_key != "")
+
+    games_norm <- games_combined |>
+        dplyr::mutate(
+            home_key = normalize_name(home_team),
+            away_key = normalize_name(away_team)
+        ) |>
+        dplyr::left_join(wbb_di, by = c("home_key" = "di_key")) |>
+        dplyr::rename(home_di_team = di_team) |>
+        dplyr::left_join(wbb_di, by = c("away_key" = "di_key")) |>
+        dplyr::rename(away_di_team = di_team) |>
+        dplyr::filter(!is.na(home_di_team), !is.na(away_di_team)) |>
+        dplyr::mutate(
+            home_team = home_di_team,
+            away_team = away_di_team
+        ) |>
+        dplyr::select(-home_di_team, -away_di_team, -home_key, -away_key)
+}
+
+# REGULAR-SEASON FILTER
+stype <- suppressWarnings(as.integer(games_norm$season_type))
+
+if (!all(is.na(stype)) && any(stype == 2, na.rm = TRUE)) {
+    games_cleaned <- games_norm |> filter(stype == 2)
+} else {
+    stxt <- tolower(as.character(games_norm$season_type))
+    stxt[is.na(stxt)] <- ""
+    games_cleaned <- games_norm |>
+        filter(
+            stringr::str_detect(stxt, "regular|season\\b") |
+                (!stringr::str_detect(stxt, "post|tourn|conf|champ|playoff") &
+                    lubridate::month(game_date) <= 2)
+        )
+}
+
+# Completed games with valid scores, no ties
+games_cleaned <- games_cleaned |>
+    filter(!is.na(home_score), !is.na(away_score)) |>
+    filter(home_score >= 0, away_score >= 0) |>
+    filter(!is.na(game_date)) |>
+    filter(home_score != away_score) |>
+    mutate(
+        home_winner = as.integer(home_score > away_score),
+        away_winner = 1L - home_winner
+    )
+
+if (nrow(games_cleaned) == 0) stop("No regular-season completed games after filtering.")
+
+if (!requireNamespace("igraph", quietly = TRUE)) install.packages("igraph")
+library(igraph)
+
+g <- graph_from_data_frame(
+    games_cleaned |> distinct(home_team, away_team),
+    directed = FALSE
+)
+comps <- components(g)
+largest_comp <- which.max(comps$csize)
+teams_in_cc <- names(comps$membership[comps$membership == largest_comp])
+
+games_cleaned <- games_cleaned |>
+    filter(home_team %in% teams_in_cc, away_team %in% teams_in_cc)
+
+# Minimum games filter
+team_game_counts <- bind_rows(
+    games_cleaned |> count(team = home_team, name = "n"),
+    games_cleaned |> count(team = away_team, name = "n")
+) |>
+    group_by(team) |>
+    summarise(total_games = sum(n), .groups = "drop")
+
+eligible_teams <- team_game_counts |>
+    filter(total_games >= 8) |>
+    pull(team)
+
+games_cleaned <- games_cleaned |>
+    filter(home_team %in% eligible_teams, away_team %in% eligible_teams)
+
+# Save data
+dir.create(here("data", "raw"), recursive = TRUE, showWarnings = FALSE)
+dir.create(here("data", "processed"), recursive = TRUE, showWarnings = FALSE)
+
+readr::write_csv(games_combined, here("data", "raw", "games_raw.csv"))
+saveRDS(games_combined, here("data", "raw", "games_raw.rds"))
+
+readr::write_csv(games_cleaned, here("data", "processed", "games_cleaned.csv"))
+saveRDS(games_cleaned, here("data", "processed", "games_cleaned.rds"))
 ```
 
 ### Data Filtering and Quality Control
@@ -144,16 +315,77 @@ We prepared the data structure for Bradley-Terry model fitting by aggregating ga
 # From scripts/01_data_collection_UPDATED.R (continued)
 
 # Build Bradley-Terry pair table
+unique_teams <- sort(unique(c(games_cleaned$home_team, games_cleaned$away_team)))
+
 bt_data <- games_cleaned |>
     rename(home.team = home_team, away.team = away_team) |>
     group_by(season, home.team, away.team) |>
     summarise(
         home.wins = sum(home_winner),
         away.wins = sum(away_winner),
-        total_games = n(),
+        total_games = dplyr::n(),
         home_adv_bar = mean(1L - neutral_site),
         .groups = "drop"
+    ) |>
+    mutate(
+        home.team = factor(home.team, levels = unique_teams),
+        away.team = factor(away.team, levels = unique_teams)
     )
+
+# TOURNAMENT SEEDS: Real NCAA Data vs Model-Based
+ncaa_seed_file <- here("data", "raw", "ncaa_seeds_historical.csv")
+    
+    tournament_seeds <- read_csv(ncaa_seed_file, show_col_types = FALSE) |>
+        filter(season == max(SEASONS)) |>
+        select(team, seed = ncaa_seed, region) |>
+        mutate(
+            team = str_trim(team),
+            season = max(SEASONS)
+        )
+    
+    available_teams <- unique(c(games_cleaned$home_team, games_cleaned$away_team))
+    
+    tournament_seeds <- tournament_seeds |>
+        filter(team %in% available_teams)
+} else {
+    # Model-based seeding using win percentage
+    team_perf <- games_cleaned |>
+        transmute(team = home_team, win = home_winner, season = season) |>
+        bind_rows(games_cleaned |>
+            transmute(team = away_team, win = away_winner, season = season)) |>
+        group_by(team) |>
+        summarise(
+            games = n(),
+            wins = sum(win),
+            win_pct = wins / games,
+            n_seasons = n_distinct(season),
+            .groups = "drop"
+        ) |>
+        arrange(desc(win_pct)) |>
+        slice_head(n = 64)
+    
+    tournament_seeds <- team_perf |>
+        mutate(
+            seed = rep(1:16, length.out = n()),
+            region = rep(c("Portland", "Albany", "Spokane", "Wichita"), length.out = n()),
+            season = max(SEASONS)
+        ) |>
+        select(season, team, seed, region)
+}
+
+mid_tier_seeds <- tournament_seeds |>
+    filter(seed >= 8, seed <= 12) |>
+    mutate(seed_category = "8-12 seeds")
+
+# Save Bradley-Terry data and tournament seeds
+readr::write_csv(bt_data, here("data", "processed", "bt_data.csv"))
+saveRDS(bt_data, here("data", "processed", "bt_data.rds"))
+
+readr::write_csv(tournament_seeds, here("data", "processed", "tournament_seeds.csv"))
+saveRDS(tournament_seeds, here("data", "processed", "tournament_seeds.rds"))
+
+readr::write_csv(mid_tier_seeds, here("data", "processed", "mid_tier_seeds.csv"))
+saveRDS(mid_tier_seeds, here("data", "processed", "mid_tier_seeds.rds"))
 ```
 
 This creates a pairwise comparison dataset suitable for Bradley-Terry modeling.
@@ -290,7 +522,6 @@ for (season_year in seasons) {
         ))
     }
 
-    # Extract team abilities
     abilities_season <- BradleyTerry2::BTabilities(bt_model_season)
     abilities_df <- as.data.frame(abilities_season) %>%
         rownames_to_column(var = "team") %>%
@@ -352,9 +583,35 @@ team_abilities_with_seeds <- team_abilities_df %>%
         )
     )
 
+# Summary Statistics
+seed_summary <- team_abilities_with_seeds %>%
+    filter(!is.na(seed)) %>%
+    group_by(seed_category) %>%
+    summarise(
+        n_teams = n(),
+        mean_lambda = mean(lambda),
+        median_lambda = median(lambda),
+        sd_lambda = sd(lambda),
+        .groups = "drop"
+    ) %>%
+    arrange(desc(mean_lambda))
+
+mid_tier <- team_abilities_with_seeds %>%
+    filter(is_mid_tier_seed) %>%
+    select(team, seed, lambda, se) %>%
+    arrange(seed, desc(lambda))
+
 # Save results
+bt_model <- bt_model_season
+
+saveRDS(bt_model, here("data", "processed", "bt_model.rds"))
+saveRDS(all_abilities, here("data", "processed", "team_abilities_by_season.rds"))
+saveRDS(team_abilities_df, here("data", "processed", "team_abilities.rds"))
 saveRDS(team_abilities_with_seeds, here("data", "processed", "team_abilities_with_seeds.rds"))
 saveRDS(win_probs, here("data", "processed", "win_probability_matrix.rds"))
+
+write_csv(team_abilities_df, here("data", "processed", "team_abilities.csv"))
+write_csv(team_abilities_with_seeds, here("data", "processed", "team_abilities_with_seeds.csv"))
 ```
 
 ---
@@ -375,7 +632,6 @@ We implement this analytically for all 8-12 seed matchups:
 library(tidyverse)
 library(here)
 
-# Load Model Results
 bt_model <- readRDS(here("data", "processed", "bt_model.rds"))
 team_abilities <- readRDS(here("data", "processed", "team_abilities_with_seeds.rds"))
 win_probs <- readRDS(here("data", "processed", "win_probability_matrix.rds"))
@@ -524,6 +780,16 @@ conditional_summary <- conditional_probs %>%
         avg_prob_champion_given_s16 = mean(prob_champion_given_sweet16, na.rm = TRUE)
     )
 
+
+deeper_summary <- deeper_runs %>%
+    group_by(seed) %>%
+    summarise(
+        expected_elite8 = sum(prob_reach_elite8, na.rm = TRUE),
+        expected_final4 = sum(prob_reach_final4, na.rm = TRUE),
+        expected_finals = sum(prob_reach_finals, na.rm = TRUE),
+        expected_champions = sum(prob_win_title, na.rm = TRUE)
+    )
+
 # Overall averages for 8-12 seeds
 overall_conditional <- conditional_probs %>%
     summarise(
@@ -545,15 +811,43 @@ overall_conditional <- conditional_probs %>%
         )
     )
 
+saveRDS(first_round_analysis,
+    file = here("results", "tables", "first_round_analysis.rds")
+)
+saveRDS(second_round_analysis,
+    file = here("results", "tables", "second_round_analysis.rds")
+)
+saveRDS(deeper_runs,
+    file = here("results", "tables", "deeper_runs_analysis.rds")
+)
+saveRDS(conditional_probs,
+    file = here("results", "tables", "conditional_probabilities.rds")
+)
+
+write_csv(first_round_summary,
+    file = here("results", "tables", "first_round_summary.csv")
+)
+write_csv(second_round_summary,
+    file = here("results", "tables", "second_round_summary.csv")
+)
+write_csv(deeper_summary,
+    file = here("results", "tables", "deeper_runs_summary.csv")
+)
+write_csv(conditional_summary,
+    file = here("results", "tables", "conditional_summary.csv")
+)
+
 # Save key results
 key_results <- list(
     expected_advance_r32 = expected_advance_r32,
     expected_in_sweet16 = expected_in_sweet16,
     overall_conditional = overall_conditional,
     first_round_summary = first_round_summary,
-    second_round_summary = second_round_summary
+    second_round_summary = second_round_summary,
+    deeper_summary = deeper_summary,
+    conditional_summary = conditional_summary
 )
-saveRDS(key_results, here("results", "tables", "key_results.rds"))
+saveRDS(key_results, file = here("results", "tables", "key_results.rds"))
 ```
 
 Output: Seed-level summary statistics and conditional probabilities
@@ -581,7 +875,6 @@ team_mat <- matrix(NA_character_,
     dimnames = list(regions, as.character(1:16))
 )
 
-# Fill from your seeded bracket (one team per seed/region if present)
 tmp <- team_abilities %>%
     select(region, seed, team, lambda) %>%
     arrange(region, seed)
@@ -609,7 +902,7 @@ get_lambda_fast <- function(seed, region) lambda_mat[region, as.character(seed)]
 get_team_fast <- function(seed, region) team_mat[region, as.character(seed)]
 inv_logit <- function(x) 1 / (1 + exp(-x))
 
-# Simulate a single game
+# Simulate single game
 simulate_game <- function(team1_lambda, team2_lambda) {
     p <- inv_logit(team1_lambda - team2_lambda)
     p <- pmin(pmax(p, 1e-6), 1 - 1e-6)
@@ -727,7 +1020,7 @@ simulate_tournament_fast <- function(seed_val = NULL) {
     bind_rows(out_rows, ff_rows, list(champ)) %>% bind_rows()
 }
 
-# Run Monte Carlo Simulations
+# Run MC Simulations
 library(parallel)
 
 N_SIMS <- 5000
@@ -754,7 +1047,6 @@ all_simulations <- bind_rows(simulation_results)
 rm(simulation_results)
 gc(verbose = FALSE)
 
-# Analyze 8-12 Seed Performance Across Simulations
 round_order <- c(
     "Round of 64", "Round of 32", "Sweet 16",
     "Elite 8", "Final 4", "Championship"
@@ -771,7 +1063,7 @@ mid_tier_counts <- all_simulations %>%
         fill = list(n_mid_tier = 0L)
     )
 
-# Summary statistics by round
+# Summary stats by round
 mid_tier_summary <- mid_tier_counts %>%
     group_by(round) %>%
     summarise(
@@ -784,10 +1076,45 @@ mid_tier_summary <- mid_tier_counts %>%
         q75 = quantile(n_mid_tier, 0.75)
     )
 
-# Save results
-saveRDS(all_simulations, here("results", "tables", "all_simulations.rds"))
-saveRDS(mid_tier_summary, here("results", "tables", "simulation_summary.rds"))
-write_csv(mid_tier_counts, here("results", "tables", "mid_tier_counts_by_sim.csv"))
+# Championship winners
+championship_winners <- all_simulations %>%
+    filter(round == "Championship") %>%
+    select(sim_id, winner_seed, winner_name)
+
+mid_tier_championships <- championship_winners %>%
+    filter(winner_seed >= 8 & winner_seed <= 12)
+
+# Analyze Performance by Individual Seed
+seed_performance <- all_simulations %>%
+    filter(winner_seed >= 8 & winner_seed <= 12) %>%
+    mutate(round = factor(round, levels = round_order)) %>%
+    group_by(winner_seed, round) %>%
+    summarise(n_reached = n(), .groups = "drop") %>%
+    mutate(
+        pct_of_sims = (n_reached / N_SIMS) * 100,
+        expected_per_seed = n_reached / (N_SIMS * 4)
+    )
+
+# Save Simulation Results
+saveRDS(all_simulations, file = here("results", "tables", "all_simulations.rds"))
+
+# Save summary statistics
+saveRDS(mid_tier_summary, file = here("results", "tables", "simulation_summary.rds"))
+write_csv(mid_tier_summary, file = here("results", "tables", "simulation_summary.csv"))
+
+# Save seed-specific performance
+saveRDS(seed_performance, file = here("results", "tables", "seed_performance_sim.rds"))
+write_csv(seed_performance, file = here("results", "tables", "seed_performance_sim.csv"))
+
+# Save championship winners
+write_csv(championship_winners,
+    file = here("results", "tables", "championship_winners.csv")
+)
+
+# Save mid-tier counts by simulation
+write_csv(mid_tier_counts,
+    file = here("results", "tables", "mid_tier_counts_by_sim.csv")
+)
 ```
 
 
@@ -802,6 +1129,39 @@ Teams with great regular-season game performance have better chances to make it 
 When a mid-tier team gets into the Sweet 16, there is about a 14% chance of getting into the Final 4 and less than 2% chance to win overall. 
 
 ### Team Strength Estimates
+
+```{r team-strength-code, eval=FALSE}
+# From scripts/05_visualization.R
+
+library(ggplot2)
+
+oi_colors <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442",
+               "#0072B2", "#D55E00", "#CC79A7", "#999999")
+
+p1 <- team_abilities %>%
+    filter(!is.na(seed)) %>%
+    mutate(
+        seed_category = factor(
+            seed_category,
+            levels = c("1-4 seeds", "5-7 seeds", "8-12 seeds", "13-16 seeds")
+        )
+    ) %>%
+    ggplot(aes(x = seed_category, y = lambda, fill = seed_category)) +
+    geom_boxplot(width = 0.65, outlier.alpha = 0.35) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "gray60") +
+    scale_fill_manual(values = oi_colors[c(1, 2, 3, 6)]) +
+    labs(
+        title = "Team Strength Distribution by Seed Category",
+        subtitle = "λ re-centered and scaled within season",
+        x = "Seed Category",
+        y = "Standardized strength (λ, z-score per season)"
+    ) +
+    theme_minimal() +
+    theme(legend.position = "none")
+
+ggsave(here("results", "figures", "01_team_strength_by_seed.png"), 
+       p1, width = 10, height = 6, dpi = 400)
+```
 
 ```{r team-strength-plot, echo=FALSE, fig.cap="Team strength distribution by seed"}
 knitr::include_graphics(here("results", "figures", "01_team_strength_by_seed.png"))
@@ -835,6 +1195,35 @@ The top-10 teams are seeds 1-4, which confirms that the selection committee seed
 
 ### Within-Seed Variation & Upset Candidates
 
+```{r upset-potential-code, eval=FALSE}
+# From scripts/05_visualization.R
+
+oi_colors <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442",
+               "#0072B2", "#D55E00", "#CC79A7", "#999999")
+
+p10 <- team_abilities %>%
+    filter(seed >= 8, seed <= 12) %>%
+    mutate(seed = factor(seed)) %>%
+    ggplot(aes(x = seed, y = lambda, color = seed)) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+    geom_jitter(width = 0.2, alpha = 0.6, size = 3) +
+    stat_summary(
+        fun = median, geom = "crossbar",
+        width = 0.5, color = "black", linewidth = 0.8
+    ) +
+    scale_color_manual(values = oi_colors) +
+    labs(
+        title = "Team Strength Variability Within Seeds 8-12",
+        subtitle = "Each point represents a team; crossbar shows median",
+        x = "Seed", y = "Standardized Strength (λ)"
+    ) +
+    theme_minimal() +
+    theme(legend.position = "none")
+
+ggsave(here("results", "figures", "10_upset_potential.png"), 
+       p10, width = 10, height = 6, dpi = 400)
+```
+
 ```{r upset-potential-plot, echo=FALSE, fig.cap="Team strength Variability Within the 8-12 seeds."}
 knitr::include_graphics(here("results", "figures", "10_upset_potential.png"))
 ```
@@ -842,6 +1231,74 @@ knitr::include_graphics(here("results", "figures", "10_upset_potential.png"))
 Not all teams with the same seed are equally strong. Understanding this variability is important to help us identify upset candidates. The figure shows that seed 11 has high variability, meaning some 11-seeds are much stronger than average, while others are weaker. For example, the strongest in seed 11 is the Iowa Hawkeyes, which has a lambda value of 0.59. However, the weakest is the Maine Black Bears with a lambda value near zero. This demonstrates why tournament outcomes can vary drastically for teams within the same seed.
 
 ### First Round Performance (8-12 Seeds)
+
+```{r first-round-code, eval=FALSE}
+# From scripts/05_visualization.R
+
+all_simulations <- readRDS(here("results", "tables", "all_simulations.rds"))
+
+oi_colors <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442",
+               "#0072B2", "#D55E00", "#CC79A7", "#999999")
+
+# Calculate first round probabilities from simulation results
+first_round_by_sim <- all_simulations %>%
+    filter(round == "Round of 64") %>%
+    mutate(
+        seed = case_when(
+            winner_seed == 8 ~ 8L,
+            winner_seed == 9 ~ 9L,
+            winner_seed == 10 ~ 10L,
+            winner_seed == 11 ~ 11L,
+            winner_seed == 12 ~ 12L,
+            TRUE ~ NA_integer_
+        )
+    ) %>%
+    filter(!is.na(seed)) %>%
+    count(sim_id, seed, name = "wins") %>%
+    tidyr::complete(sim_id, seed = 8:12, fill = list(wins = 0L)) %>%
+    mutate(wins = replace_na(wins, 0L))
+
+first_round_ci <- first_round_by_sim %>%
+    group_by(seed) %>%
+    summarise(
+        mean_wins = mean(wins),
+        lo = quantile(wins, 0.025),
+        hi = quantile(wins, 0.975),
+        .groups = "drop"
+    ) %>%
+    mutate(
+        mean_prob = mean_wins / 4,
+        lo_prob = lo / 4,
+        hi_prob = hi / 4
+    )
+
+p3 <- first_round_ci %>%
+    ggplot(aes(x = factor(seed), y = mean_prob)) +
+    geom_hline(yintercept = 0.5, linetype = "dashed", color = "gray60", linewidth = 0.5) +
+    geom_col(fill = oi_colors[3], alpha = 0.85) +
+    geom_errorbar(
+        aes(ymin = lo_prob, ymax = hi_prob),
+        width = 0.3, color = oi_colors[5], linewidth = 0.8
+    ) +
+    geom_text(
+        aes(label = scales::percent(mean_prob, accuracy = 0.1)),
+        vjust = -0.5, size = 4, fontface = "bold"
+    ) +
+    scale_y_continuous(
+        labels = scales::percent_format(),
+        limits = c(0, 1),
+        expand = expansion(mult = c(0, 0.1))
+    ) +
+    labs(
+        title = "First Round Win Probability by Seed (8–12)",
+        subtitle = "Per-team probability of advancing to Round of 32 (from 5,000 simulations)",
+        x = "Seed", y = "Win Probability"
+    ) +
+    theme_minimal()
+
+ggsave(here("results", "figures", "03_first_round_probabilities.png"), 
+       p3, width = 10, height = 6, dpi = 400)
+```
 
 ```{r first-round-plot, echo=FALSE, fig.cap="First round Win Probabilities for 8-12 seeds"}
 knitr::include_graphics(here("results", "figures", "03_first_round_probabilities.png"))
@@ -880,7 +1337,7 @@ However, for an uneven match:
 - 10 seeds versus 7 seeds: 34% Win Probability
 - 12 seeds versus 5 seeds: 25% Win Probability
 
-Therefore, we would expect approximately 9-10 from the 20 teams in the 8-12 seeds would win their first-round game and advance.
+Therefore, we would expect approximately 8-9 from the 20 teams in the 8-12 seeds would win their first-round game and advance.
 
 ### Advancement to the Sweet 16
 
@@ -921,6 +1378,49 @@ Specifically, seeds 10-12 face would likely face seeds 3-5 in Round 2, so if the
 
 ### Further Advancement Beyond the Sweet 16
 
+```{r conditional-probabilities-code, eval=FALSE}
+# From scripts/05_visualization.R
+
+conditional_summary <- read_csv(here("results", "tables", "conditional_summary.csv"), 
+                                show_col_types = FALSE)
+
+oi_colors <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442",
+               "#0072B2", "#D55E00", "#CC79A7", "#999999")
+
+cond_long <- conditional_summary %>%
+    select(seed, Elite_8 = avg_prob_elite8_given_s16, 
+           `Final Four` = avg_prob_final4_given_s16,
+           Championship = avg_prob_finals_given_s16,
+           `Win Title` = avg_prob_champion_given_s16) %>%
+    pivot_longer(-seed, names_to = "Round", values_to = "Probability")
+
+p7 <- cond_long %>%
+    mutate(
+        Round = factor(Round, levels = c("Elite_8", "Final Four", "Championship", "Win Title")),
+        seed = factor(seed)
+    ) %>%
+    ggplot(aes(x = seed, y = Probability, fill = seed)) +
+    geom_col(alpha = 0.9, width = 0.75) +
+    geom_text(
+        aes(label = scales::percent(Probability, accuracy = 0.1)),
+        vjust = -0.4, size = 3.5, fontface = "bold"
+    ) +
+    facet_wrap(~Round, ncol = 2, scales = "free_y") +
+    scale_y_continuous(labels = scales::percent_format(), 
+                       expand = expansion(mult = c(0, 0.15))) +
+    scale_fill_manual(values = oi_colors) +
+    labs(
+        title = "Conditional Advancement Probabilities for 8–12 Seeds",
+        subtitle = "Given a team reaches the Sweet 16",
+        x = "Seed", y = "Probability"
+    ) +
+    theme_minimal() +
+    theme(legend.position = "none")
+
+ggsave(here("results", "figures", "07_conditional_probabilities.png"), 
+       p7, width = 10, height = 6, dpi = 400)
+```
+
 ```{r conditional-plot, echo=FALSE, fig.cap="Conditional probabilities given Sweet 16 outcome"}
 knitr::include_graphics(here("results", "figures", "07_conditional_probabilities.png"))
 ```
@@ -952,6 +1452,38 @@ if (!is.null(key_results) && !is.null(key_results$conditional_summary)) {
 When a seed 8-12 moves onto the Sweet 16, they have already overcome the obstacle of beating better opponents. Notably, given that a 8-12 seed team reaches the Swett 16, there is a 45% chance of reaching the Elite 8, which means that they are still good competitors once they proved themselves in the Sweet 16. However, there is still a low probability of winning, as 1.9% of teams that achieve the Sweet 16 will win the championship. There are conditional probabilities differ between seeds as seeds 8-9 are stronger by a little compared to seeds 10-12. 
 
 ### Monte Carlo Simulation
+
+```{r simulation-distributions-code, eval=FALSE}
+# From scripts/05_visualization.R
+
+mid_tier_counts <- read_csv(here("results", "tables", "mid_tier_counts_by_sim.csv"), 
+                            show_col_types = FALSE)
+
+oi_colors <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442",
+               "#0072B2", "#D55E00", "#CC79A7", "#999999")
+
+round_order <- c("Round of 64", "Round of 32", "Sweet 16", 
+                 "Elite 8", "Final Four", "Championship")
+
+p5 <- mid_tier_counts %>%
+    filter(round != "Round of 64") %>%
+    mutate(round = factor(round, levels = round_order)) %>%
+    ggplot(aes(x = n_mid_tier, fill = round)) +
+    geom_histogram(binwidth = 1, color = "white", linewidth = 0.3, alpha = 0.9) +
+    facet_wrap(~round, ncol = 2, scales = "free_x") +
+    scale_fill_manual(values = rep(oi_colors, length.out = 6)) +
+    labs(
+        title = "Distribution of 8-12 Seed Counts Across Tournament Rounds",
+        subtitle = "From 5,000 tournament simulations",
+        x = "Number of 8-12 Seeds Advancing",
+        y = "Number of Simulations"
+    ) +
+    theme_minimal() +
+    theme(legend.position = "none")
+
+ggsave(here("results", "figures", "05_simulation_distributions.png"), 
+       p5, width = 10, height = 6, dpi = 400)
+```
 
 ```{r simulation-plot, echo=FALSE, fig.cap="Distribution of 8-12 Seeds by Round Advancements"}
 knitr::include_graphics(here("results", "figures", "05_simulation_distributions.png"))

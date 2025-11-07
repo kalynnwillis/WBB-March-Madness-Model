@@ -52,7 +52,7 @@ sweet16_probs <- read_if_exists(here("results", "tables", "sweet16_mid_tier_prob
 
 # Executive Summary 
 
-The NCAA Women’s Basketball Tournament takes place in March, which makes it considered March Madness. While generally, people assume that the mid- to high-tier teams make it to the “Sweet Sixteen” (Top 16 teams in the tournament), in 2024, that did not happen, as no mid-tier teams made it to the Top 16. The question we want to answer is if a team ranked 8-12 advances to the second round, what is the chance they make it to the finals (or even win)?
+The NCAA Women’s Basketball Tournament takes place in March, which makes it considered March Madness. While generally, people assume that the mid- to high-tier teams make it to the “Sweet 16” (Top 16 teams in the tournament), in 2024, that did not happen, as no mid-tier teams made it to the Top 16. The question we want to answer is if a team ranked 8-12 advances to the second round, what is the chance they make it to the finals (or even win)?
 
 The data we used was from the wehoop R package, which provides play-by-play data, box scores, and game results from 2002-2024 for WNBA and WNCAA (and we will use the WNCAA data). Our analysis consisted of over 5,000 season games to create strength ratings for all teams in the tournament by evaluating their opponents and performance rather than wins and losses. Then, we simulated the tournaments 5,000 times to see outcomes from teams seeded 8-12. 
 
@@ -64,23 +64,23 @@ Overall, our results display that 2.21 teams in seeds 8-12 advance to the Sweet 
 
 ---
 
-# 1. Introduction
+# Introduction
 
-## 1.1 Motivation and Problem Statement
+## Motivation and Problem Statement
 
 The NCAA Women’s Basketball tournament, often called March Madness, includes 64 teams and engages viewers across the United States each year through March Madness bracket creation. Individuals take educated guesses as to which teams will win each game and eventually the entire tournament, and because of the single-elimination format, these unpredictable games with frequent upsets are very engaging. In each of the four regions, 16 teams are seeded based on their rankings. Understanding the probability of upsets, which occurs when a lower seeded team wins against a higher-seeded team, is valuable for bracket predictions, how competitive the two teams are, and identifying over or under seeded teams.
 
 In theory, if every seed was correct with 100% accuracy, no team seeded higher than a 4 seed would make it to the Sweet 16. But in reality, we know upsets occur – for example, consider the Duke (#7 seed) versus Ohio State (#2 seed) Women’s March Madness second round game in 2024. Unexpectedly, Duke came out on top in a 75-63 point victory, their advancement to the Sweet 16. Many individuals would have had Ohio State advancing in their brackets. In addition, it makes us wonder if Duke and Ohio State were more competitive than the average game between a 7 and 2 seed, so it would be valuable to know the probability that Duke would win (or any other underdog) for the future.
 
-## 1.2 Research Questions
+## Research Questions
 
 We were curious to take a more in-depth look at teams lying within the bottom half of the rankings, but still strong enough to potentially make an impact on the March Madness brackets (seed 8 – 12 in all 4 regions). Specifically, we ask how many of the 8 - 12 seeds should be expected to advance to the Sweet 16 and if they advance past the second round, what the chance is that they make it all the way to the final. This is interesting because they are not automatic first-round losers or overwhelming favorites – individuals making bracket predictions may want to place bets in the 8 - 12 seeds if the probabilities of them winning are high enough to take the underdog. In both the 2023 and 2024 Women’s March Madness seasons, there wasn’t a single team seeded 8 - 12 that advanced to the Sweet 16, so we are curious how often we should expect this result.
 
 ---
 
-# 2. Methodology
+# Methodology
 
-## 2.1 Data Collection and Preparation
+## Data Collection and Preparation
 
 ```{r data-summary, echo=FALSE}
 # Load data info
@@ -102,7 +102,7 @@ if (!is.null(team_abilities) && !is.null(games_cleaned)) {
 
 ### Data Source and Collection
 
-We collected our data using the **wehoop** R package (which includes comprehensive game-level data from ESPN) and pulled Women's NCAA Basketball data for 5 seasons: **2019 and 2021-2024**. We chose to exclude 2020 due to potential disruptions from COVID-19. In total, we analyzed **`r n_teams` teams** with **`r format(n_games, big.mark=",")` total games**. Our final tournament bracket included 64 teams with **`r n_mid_tier` teams seeded 8-12**.
+We collected our data using the **wehoop** R package (which includes comprehensive game-level data from ESPN) and pulled Women's NCAA Basketball data for 5 seasons: 2019 and 2021-2024. We chose to exclude 2020 due to potential disruptions from COVID-19. In total, we analyzed **`r n_teams` teams** with **`r format(n_games, big.mark=",")` total games**. Our final tournament bracket included 64 teams with **`r n_mid_tier` teams seeded 8-12**.
 
 ```{r data-collection-code, eval=FALSE}
 # From scripts/01_data_collection_UPDATED.R
@@ -128,13 +128,13 @@ raw <- wehoop::load_wbb_schedule(seasons = SEASONS)
 
 ### Data Filtering and Quality Control
 
-We applied D-I team normalization **before any filtering**, then filtered for data quality:
+We applied D-I team normalization before any filtering, then filtered for data quality:
 
-- **Regular season games only:** Excluded exhibition games, conference tournaments, and NCAA tournament games
-- **Complete games only:** Required non-missing scores and valid game dates
-- **No ties:** Removed games ending in ties
-- **Connected component:** Kept only teams in the largest connected network (all teams must be transitively comparable)
-- **Minimum games:** Teams must have played at least 8 games
+- Regular season games only: Excluded exhibition games, conference tournaments, and NCAA tournament games
+- Complete games only: Required non-missing scores and valid game dates
+- No ties: Removed games ending in ties
+- Connected component: Kept only teams in the largest connected network (all teams must be transitively comparable)
+- Minimum games: Teams must have played at least 8 games
 
 ### Bradley-Terry Data Preparation
 
@@ -160,7 +160,7 @@ This creates a pairwise comparison dataset suitable for Bradley-Terry modeling.
 
 ---
 
-## 2.2 Bradley-Terry Model Framework
+## Bradley-Terry Model Framework
 
 ### Model Specification
 
@@ -170,17 +170,17 @@ $$
 P(\text{team } i \text{ beats team } j) = \frac{e^{\lambda_i}}{e^{\lambda_i} + e^{\lambda_j}} = \frac{1}{1 + e^{-(\lambda_i - \lambda_j)}}
 $$
 
-The parameter $\lambda_i$ represents the log-strength of Team $i$. The larger the lambda, the stronger the team. Win probability depends on the **difference** of lambda values: the larger the difference, the more probable it is that the stronger team will win.
+The parameter lambda represents the log-strength of Team $i$. The larger the lambda, the stronger the team. Win probability depends on the **difference** of lambda values: the larger the difference, the more probable it is that the stronger team will win.
 
 ### Synthetic Tournament Seeds
 
-For our analysis, we used **synthetic tournament seeds** based on team strength generated by Bradley-Terry lambda values. We do not analyze historical Women's March Madness brackets; instead, we use regular season games to predict how teams seeded 8-12 would perform in the tournament.
+For our analysis, we used synthetic tournament seeds based on team strength generated by Bradley-Terry lambda values. We do not analyze historical Women's March Madness brackets; instead, we use regular season games to predict how teams seeded 8-12 would perform in the tournament.
 
 We assigned seeds 1-16 to the top 64 teams based on their Bradley-Terry latent strength parameters across the five seasons. This approach excludes actual NCAA committee-selected seeds, which can be affected by factors including geographic restrictions, conference tournament results, and subjective decisions. 
 
-**Why synthetic seeding?** This allows for an unbiased analysis demonstrating tournament results under "perfect seeding"—where seeds perfectly reflect team strength as measured by regular season performance.
+Synthetic seeding allows for an unbiased analysis demonstrating tournament results under "perfect seeding"—where seeds perfectly reflect team strength as measured by regular season performance.
 
-### Covariates Considered and Model Comparison
+### Covariates and Model Comparison
 
 Our base model includes a home team indicator variable to control for home-court advantage. We explored additional covariates to enhance the Bradley-Terry model by capturing different dimensions of team performance beyond simple win-loss records.
 
@@ -188,13 +188,13 @@ Our base model includes a home team indicator variable to control for home-court
 
 Traditional Bradley-Terry models use only game outcomes (win/loss), but basketball performance has multiple measurable dimensions. We considered four types of performance metrics commonly used in basketball analytics:
 
-1. **Offensive Rating (off_diff):** Points scored per game. Teams with strong offenses may have different tournament trajectories than defensive-minded teams, even with identical records.
+1. Offensive Rating (off_diff): Points scored per game. Teams with strong offenses may have different tournament trajectories than defensive-minded teams, even with identical records.
 
-2. **Defensive Rating (def_diff):** Points allowed per game. Strong defensive teams might perform better under tournament pressure when every possession matters.
+2. Defensive Rating (def_diff): Points allowed per game. Strong defensive teams might perform better under tournament pressure when every possession matters.
 
-3. **Net Rating (net_diff):** Point differential per game (offensive rating minus defensive rating). This composite metric captures overall dominance—teams that consistently win by large margins may be stronger than teams that win close games.
+3. Net Rating (net_diff): Point differential per game (offensive rating minus defensive rating). This composite metric captures overall dominance—teams that consistently win by large margins may be stronger than teams that win close games.
 
-4. **Margin of Victory (mov_diff):** Average winning margin in games won. Unlike net rating (which includes losses), MOV focuses specifically on how dominant teams are in their victories, potentially identifying teams that "turn it on" when ahead.
+4. Margin of Victory (mov_diff): Average winning margin in games won. Unlike net rating (which includes losses), MOV focuses specifically on how dominant teams are in their victories, potentially identifying teams that "turn it on" when ahead.
 
 We hypothesized that incorporating these metrics might improve predictions because:
 - Two teams with identical 20-5 records may differ significantly in dominance (winning by 2 vs. 20 points on average)
@@ -203,13 +203,13 @@ We hypothesized that incorporating these metrics might improve predictions becau
 
 **Models Evaluated:**
 
-We fit five models and compared their **predictive performance** on a holdout test set (2024 season), training on 2019, 2021-2023:
+We fit five models and compared their predictive performance on a holdout test set (2024 season), training on 2019, 2021-2023:
 
-1. **Base Model:** `team + home_advantage`
-2. **Net Rating Model:** `team + home_advantage + net_diff` (overall dominance)
-3. **Off/Def Model:** `team + home_advantage + off_diff + def_diff` (separate offensive/defensive effects)
-4. **MOV Model:** `team + home_advantage + mov_diff` (winning margin in victories)
-5. **Combined Model:** `team + home_advantage + net_diff + mov_diff` (overall dominance + victory margins)
+1. Base Model: `team + home_advantage`
+2. Net Rating Model: `team + home_advantage + net_diff` (overall dominance)
+3. Off/Def Model: `team + home_advantage + off_diff + def_diff` (separate offensive/defensive effects)
+4. MOV Model: `team + home_advantage + mov_diff` (winning margin in victories)
+5. Combined Model: `team + home_advantage + net_diff + mov_diff` (overall dominance + victory margins)
 
 **Results:**
 
@@ -359,7 +359,7 @@ saveRDS(win_probs, here("data", "processed", "win_probability_matrix.rds"))
 
 ---
 
-## 2.3 Analysis Approach
+## Analysis Approach
 
 Our analysis begins by fitting each latent team strength parameter lambda for all D1 teams using the regular seasons data. Next, for each tournament matchup, we calculate the win probabilities for each 8-12 seed matchups using:
 
@@ -472,7 +472,7 @@ second_round_summary <- second_round_analysis %>%
 # Expected number of 8-12 seeds in Sweet 16
 expected_in_sweet16 <- sum(second_round_summary$expected_in_sweet16)
 
-# Calculate Elite 8 and Final Four Probabilities
+# Calculate Elite 8 and Final 4 Probabilities
 # Get average abilities of top seeds by region
 top_seed_abilities <- team_abilities %>%
     filter(seed <= 4) %>%
@@ -492,7 +492,7 @@ deeper_runs <- second_round_analysis %>%
         # Elite 8 opponent (typically 1 or 2 seed)
         prob_win_elite8 = 1 / (1 + exp(-(lambda - avg_top_lambda - 0.5))),
         prob_reach_final4 = prob_reach_elite8 * prob_win_elite8,
-        # Final Four (facing another region's top team)
+        # Final 4 (facing another region's top team)
         prob_win_final4 = 1 / (1 + exp(-(lambda - avg_top_lambda - 0.5))),
         prob_reach_finals = prob_reach_final4 * prob_win_final4,
         # Championship game
@@ -556,7 +556,7 @@ key_results <- list(
 saveRDS(key_results, here("results", "tables", "key_results.rds"))
 ```
 
-**Output:** Seed-level summary statistics and conditional probabilities
+Output: Seed-level summary statistics and conditional probabilities
 
 Then, we simulate the 64-teams single elimination March Madness tournaments 5,000 times using Bradley-Terry win probabilities:
 
@@ -689,7 +689,7 @@ simulate_tournament_fast <- function(seed_val = NULL) {
         )
     }
 
-    # Final Four (National semis) — pair region winners [1vs2], [3vs4]
+    # Final 4 (National semis) — pair region winners [1vs2], [3vs4]
     e8 <- bind_rows(out_rows) %>%
         filter(round == "Elite 8") %>%
         arrange(region)
@@ -702,7 +702,7 @@ simulate_tournament_fast <- function(seed_val = NULL) {
         sed <- g$winner_seed
         win <- simulate_game(lam[1], lam[2])
         tibble(
-            round = "Final Four", region = "National", matchup_id = k,
+            round = "Final 4", region = "National", matchup_id = k,
             team1_seed = sed[1], team2_seed = sed[2],
             winner_seed = ifelse(win == 1, sed[1], sed[2]),
             winner_lambda = ifelse(win == 1, lam[1], lam[2]),
@@ -757,7 +757,7 @@ gc(verbose = FALSE)
 # Analyze 8-12 Seed Performance Across Simulations
 round_order <- c(
     "Round of 64", "Round of 32", "Sweet 16",
-    "Elite 8", "Final Four", "Championship"
+    "Elite 8", "Final 4", "Championship"
 )
 
 # Count 8-12 seeds in each round for each simulation
@@ -795,20 +795,19 @@ write_csv(mid_tier_counts, here("results", "tables", "mid_tier_counts_by_sim.csv
 
 # 3. Results
 
-## 3.1 Team Strength Estimates
+For a tournament, we expect around 2-3 teams (seeds 8-12) to get to the Sweet 16. Our simulations align with this posturization, with an average of 2.21 teams advancing as the tournaments have about 1-3 mid-tier seeds advance. In the 2023-24 season, where no teams in seeds 8-12 advanced, the probability of occurring was about 6.8%.
 
-```{r team-strength-plot, echo=FALSE, fig.cap="Team strength distribution by seed category"}
+Teams with great regular-season game performance have better chances to make it to the Sweet 16 despite seed number. Team strength values vary a lot, where the strongest teams in this mid-tier 8-12 seeds have a probability to make it to the Sweet 16 around 2%, while the weaker teams are around 0%.
+
+When a mid-tier team gets into the Sweet 16, there is about a 14% chance of getting into the Final 4 and less than 2% chance to win overall. 
+
+### Team Strength Estimates
+
+```{r team-strength-plot, echo=FALSE, fig.cap="Team strength distribution by seed"}
 knitr::include_graphics(here("results", "figures", "01_team_strength_by_seed.png"))
 ```
 
-The Bradley-Terry model successfully distinguishes between seed categories, with higher seeds showing systematically higher estimated strengths. The strength parameter $\lambda$ exhibits clear separation:
-
-- **Seeds 1-4:** $\lambda > 8$ (strongest teams)
-- **Seeds 5-7:** $6 < \lambda < 8$ (strong teams)
-- **Seeds 8-12:** $4 < \lambda < 6$ (mid-tier teams, our focus)
-- **Seeds 13-16:** $\lambda < 4$ (weakest tournament teams)
-
-This ordering validates that regular season performance (which determines seeds) correlates strongly with model-estimated strength.
+The Bradley-Terry model indicates that higher seeds tend to have a higher pattern of team strengths. Seeds 1-4 (strong) have a lambda of > 8, whereas seeds 8-12 (mid-tier) have a 4 < lambda < 6. Thus, regular game performance in regard to team strength is strongly correlated with our estimated output from the model. 
 
 ### Top 10 Strongest Teams
 
@@ -827,26 +826,24 @@ if (!is.null(team_abilities)) {
             `Std. Error` = sprintf("%.3f", `Std. Error`)
         )
 
-    kable(top_teams, caption = "Top 10 Strongest Teams (Lambda = log-strength on Bradley-Terry scale)") %>%
+    kable(top_teams, caption = "Top 10 Strongest Teams with Lambda = log-strength (Bradley-Terry scale)") %>%
         kable_styling(bootstrap_options = c("striped", "hover"))
 }
 ```
 
-All top-10 teams are seeded 1-4, confirming that the selection committee's seeding aligns with regular season strength. The standard errors (SE) are relatively small, indicating precise strength estimates.
+The top-10 teams are seeds 1-4, which confirms that the selection committee seed decisions align with regular-season strength. The standard errors (SEs) are small, indicating our precise strength estimates.
 
-### Within-Seed Variability and Upset Potential
+### Within-Seed Variation & Upset Candidates
 
-Not all teams with the same seed are equally strong. Understanding this variability is crucial for identifying upset candidates.
-
-```{r upset-potential-plot, echo=FALSE, fig.cap="Team strength variability within 8-12 seeds. Greater variability indicates higher upset potential—some teams are much stronger or weaker than their seed suggests."}
+```{r upset-potential-plot, echo=FALSE, fig.cap="Team strength Variability Within the 8-12 seeds."}
 knitr::include_graphics(here("results", "figures", "10_upset_potential.png"))
 ```
 
-The figure above shows that seed 11 has particularly high variability, meaning some 11-seeds are much stronger than average, while others are weaker. For example, the strongest 11-seed (Iowa Hawkeyes) has a λ value of 0.59, while the weakest (Maine Black Bears) has a λ near zero. This explains why tournament outcomes can vary dramatically even for teams with the same seed.
+Not all teams with the same seed are equally strong. Understanding this variability is important to help us identify upset candidates. The figure shows that seed 11 has high variability, meaning some 11-seeds are much stronger than average, while others are weaker. For example, the strongest in seed 11 is the Iowa Hawkeyes, which has a lambda value of 0.59. However, the weakest is the Maine Black Bears with a lambda value near zero. This demonstrates why tournament outcomes can vary drastically for teams within the same seed.
 
-## 3.2 First Round Performance (8-12 Seeds)
+### First Round Performance (8-12 Seeds)
 
-```{r first-round-plot, echo=FALSE, fig.cap="First round win probabilities for 8-12 seeds"}
+```{r first-round-plot, echo=FALSE, fig.cap="First round Win Probabilities for 8-12 seeds"}
 knitr::include_graphics(here("results", "figures", "03_first_round_probabilities.png"))
 ```
 
@@ -862,47 +859,30 @@ if (!is.null(key_results) && !is.null(key_results$first_round_summary)) {
             `Expected Wins` = sprintf("%.2f", `Expected Wins`)
         )
 
-    kable(first_round_summary,
-        caption = "First Round Win Probabilities by Seed"
+    kable(first_round_summary
     ) %>%
         kable_styling(bootstrap_options = c("striped", "hover"))
 }
 ```
 
-**Key Findings:**
+We find that for an almost even match:
+- 8 seeds versus 9 seeds: 49% Win Probability
+- 9 seeds versus 8 seeds: 51% Win Probability
+These close win probabilities show that 8 seeds versus 9 seeds have unpredictable first-round games.
 
-- **8 seeds** face 9 seeds (near-even matchup): ~49% win probability
-- **9 seeds** face 8 seeds (near-even matchup): ~51% win probability  
-- **10 seeds** face 7 seeds: ~34% win probability
-- **11 seeds** face 6 seeds: ~32% win probability
-- **12 seeds** face 5 seeds: ~25% win probability
+However, for an uneven match:
+- 10 seeds versus 7 seeds: 34% Win Probability
+- 12 seeds versus 5 seeds: 25% Win Probability
 
-Collectively, we expect about **9-10 of the 20 teams seeded 8-12 to win their first-round game**.
+Therefore, we would expect approximately 9-10 from the 20 teams in the 8-12 seeds would win their first-round game and advance.
 
-### Key Matchup Win Probabilities
+### Advancement to the Sweet 16
 
-Understanding specific matchup probabilities helps bracket builders identify which mid-tier seeds have the best chances:
-
-```{r key-matchups-plot, echo=FALSE, fig.cap="Win probabilities for 8-12 seeds in typical first-round matchups. The 8 vs 9 and 9 vs 8 matchups are nearly even, while 12 seeds face much longer odds against 5 seeds."}
-knitr::include_graphics(here("results", "figures", "11_key_matchups.png"))
-```
-
-This visualization reveals which matchups favor the mid-tier seed. Note that 8-seeds and 9-seeds have nearly 50-50 odds against each other, making these the most unpredictable first-round games.
-
-## 3.3 Research Question 1: Expected Advancement
-
-```{r analytical-vs-sim, echo=FALSE, fig.cap="Comparison of analytical predictions with Monte Carlo simulation results"}
+```{r analytical-vs-sim, echo=FALSE, fig.cap="Analytical predictions versus Monte Carlo simulation results"}
 knitr::include_graphics(here("results", "figures", "06_analytical_vs_simulation.png"))
 ```
 
-### Answer to Research Question 1
-
-**We expect approximately 2.21 of the 8-12 seeds to advance to the Sweet 16** in a typical tournament.
-
-- **Simulation mean:** 2.21 teams (from 5,000 simulations)
-- **Typical range:** 0-7 teams (full range), 1-3 teams (67% of simulations)
-- **Most common outcomes:** 2 teams (28.6%), 3 teams (27.3%), 1 team (16.7%)
-- **Note:** A seed-level analytical calculation gives 3.75 teams, but this overestimates because it uses average probabilities and doesn't account for the wide variation in team strength within seed groups (some 8-12 seeds have near-zero λ values)
+Approximately 2.21 of the 8-12 seeds (from 5,000 simulations) are estimated to advance to the Sweet 16 in a tournament.
 
 ```{r advancement-table, echo=FALSE}
 if (!is.null(key_results) && !is.null(key_results$second_round_summary)) {
@@ -922,33 +902,21 @@ if (!is.null(key_results) && !is.null(key_results$second_round_summary)) {
             `Expected in Sweet 16` = sprintf("%.2f", `Expected in Sweet 16`)
         )
 
-    kable(advancement,
-        caption = "Second Round Performance and Sweet 16 Expectations (R1 = Round 1, R2 = Round 2)"
+    kable(advancement)"
     ) %>%
         kable_styling(bootstrap_options = c("striped", "hover"))
 }
 ```
 
-**Key Insights:**
+Therefore, if an 8 or 9 seed wins Round 1, they would likely go on to face seeds 1 or 2 in Round 2, which lowers the Sweet 16 probability by a lot. 
 
-- Even if an 8 or 9 seed wins Round 1, they face a top seed (1 or 2) in Round 2, dramatically lowering Sweet 16 probability
-- 10-12 seeds face 3-5 seeds in Round 2 if they advance—still challenging but slightly better odds than 8-9 seeds
-- The "expected in Sweet 16" column shows that each seed contributes less than 0.5 teams on average
+Specifically, seeds 10-12 face would likely face seeds 3-5 in Round 2, so if they advance, it is difficult, but better chances than seeds 8-9 since they have to face seeds 1-2. 
 
-## 3.4 Research Question 2: Conditional Probabilities
+### Further Advancement Beyond the Sweet 16
 
-```{r conditional-plot, echo=FALSE, fig.cap="Conditional probabilities given Sweet 16 appearance"}
+```{r conditional-plot, echo=FALSE, fig.cap="Conditional probabilities given Sweet 16 outcome"}
 knitr::include_graphics(here("results", "figures", "07_conditional_probabilities.png"))
 ```
-
-### Answer to Research Question 2
-
-**Given that an 8-12 seed reaches the Sweet 16:**
-
-- Probability of reaching **Elite 8**: `r if(!is.null(key_results)) sprintf("%.1f%%", key_results$overall_conditional$prob_elite8_given_s16 * 100) else "45.0%"`
-- Probability of reaching **Final Four**: `r if(!is.null(key_results)) sprintf("%.1f%%", key_results$overall_conditional$prob_final4_given_s16 * 100) else "15.3%"`
-- Probability of reaching **Finals**: `r if(!is.null(key_results)) sprintf("%.1f%%", key_results$overall_conditional$prob_finals_given_s16 * 100) else "5.3%"`
-- Probability of **winning championship**: `r if(!is.null(key_results)) sprintf("%.1f%%", key_results$overall_conditional$prob_champion_given_s16 * 100) else "1.9%"`
 
 ```{r conditional-table, echo=FALSE}
 if (!is.null(key_results) && !is.null(key_results$conditional_summary)) {
@@ -956,7 +924,7 @@ if (!is.null(key_results) && !is.null(key_results$conditional_summary)) {
         select(
             Seed = seed,
             `Elite 8` = avg_prob_elite8_given_s16,
-            `Final Four` = avg_prob_final4_given_s16,
+            `Final 4` = avg_prob_final4_given_s16,
             `Finals` = avg_prob_finals_given_s16,
             `Champion` = avg_prob_champion_given_s16
         ) %>%
@@ -974,32 +942,18 @@ if (!is.null(key_results) && !is.null(key_results$conditional_summary)) {
 }
 ```
 
-**Interpretation:**
+When a seed 8-12 moves onto the Sweet 16, they have already overcome the obstacle of beating better opponents. Notably, given that a 8-12 seed team reaches the Swett 16, there is a 45% chance of reaching the Elite 8, which means that they are still good competitors once they proved themselves in the Sweet 16. However, there is still a low probability of winning, as 1.9% of teams that achieve the Sweet 16 will win the championship. There are conditional probabilities differ between seeds as seeds 8-9 are stronger by a little compared to seeds 10-12. 
 
-- Making the Sweet 16 as an 8-12 seed suggests the team has already beaten better-than-expected opponents
-- However, subsequent rounds still present formidable challenges (typically 1-3 seeds)
-- Only about **1 in 53 teams (1.9%)** that reach the Sweet 16 go on to win the championship
-- Nearly half (45%) reach the Elite 8, showing they remain competitive once they've proven themselves
-- The conditional probabilities vary by seed (8-9 seeds slightly stronger than 10-12 seeds overall)
+### Monte Carlo Simulation
 
-## 3.5 Monte Carlo Simulation Results
-
-```{r simulation-plot, echo=FALSE, fig.cap="Distribution of 8-12 seeds by round (5000 simulations)"}
+```{r simulation-plot, echo=FALSE, fig.cap="Distribution of 8-12 Seeds by Round Advancements"}
 knitr::include_graphics(here("results", "figures", "05_simulation_distributions.png"))
-```
-
-### Simulation Validation
-
-The Monte Carlo simulations (5,000 tournament replications) closely match our analytical predictions, providing confidence in our results. The distributions show substantial variation—some tournaments have no mid-tier seeds in the Sweet 16, while others have 3-4.
-
-```{r heatmap, echo=FALSE, fig.cap="Seed performance heatmap from simulations"}
-knitr::include_graphics(here("results", "figures", "08_seed_performance_heatmap.png"))
 ```
 
 ```{r simulation-summary, echo=FALSE}
 if (!is.null(key_results) && !is.null(key_results$simulation_summary)) {
     sim_summary <- key_results$simulation_summary %>%
-        filter(round %in% c("Sweet 16", "Elite 8", "Final Four", "Championship")) %>%
+        filter(round %in% c("Sweet 16", "Elite 8", "Final 4", "Championship")) %>%
         select(
             Round = round,
             `Mean Count` = mean_count,
@@ -1016,422 +970,49 @@ if (!is.null(key_results) && !is.null(key_results$simulation_summary)) {
         )
 
     kable(sim_summary,
-        caption = "8-12 Seed Counts by Round (5,000 Simulations). P(Zero) = probability of zero 8-12 seeds reaching that round"
+        caption = "8-12 Seed Counts by Round Advancements"
     ) %>%
         kable_styling(bootstrap_options = c("striped", "hover"))
 }
 ```
 
-## 3.6 Individual Team Probabilities
+The Monte Carlo simulations (5,000 replications) align with our analytical predictions. The distributions show substantial variation—some tournaments have no mid-tier seeds in the Sweet 16, while others have 3-4. The distribution progressively narrows as 8-10 of the 20 teams in seeds 8-12 make it to the Round of 32, then 3-4 of those same teams make it to the Sweet 16. From there, 1-2 of the same teams make it to the Elite 8, and about one team makes it to the Final 4.
 
-```{r load-individual-results, echo=FALSE}
-# Load individual team probability results
-team_probs <- read_if_exists(here("results", "tables", "individual_team_probabilities.rds"))
-mid_tier_advancement <- read_if_exists(here("results", "tables", "mid_tier_team_advancement.csv"))
-```
+### Historical Example: 2023-2024
 
-While the previous sections analyzed 8-12 seeds as a group, we can also calculate the probability that **specific teams** make it to each round. This is particularly relevant given that in 2023 and 2024, **no 8-12 seeds made it to the Sweet 16**.
-
-### Sweet 16 Probabilities by Team
-
-```{r sweet16-individual-plot, echo=FALSE, fig.cap="Individual team probabilities of reaching Sweet 16"}
-knitr::include_graphics(here("results", "figures", "09_sweet16_mid_tier_probabilities.png"))
-```
-
-```{r sweet16-team-table, echo=FALSE}
-if (!is.null(mid_tier_advancement)) {
-    sweet16_teams <- mid_tier_advancement %>%
-        arrange(desc(`Sweet 16`)) %>%
-        select(
-            Team = winner_name,
-            Seed = seed,
-            Region = region,
-            `P(Sweet 16)` = `Sweet 16`,
-            `P(Elite 8)` = `Elite 8`,
-            `P(Final Four)` = `Final Four`
-        ) %>%
-        mutate(
-            Seed = as.integer(Seed),
-            across(c(`P(Sweet 16)`, `P(Elite 8)`, `P(Final Four)`), ~ sprintf("%.1f%%", . * 100))
-        )
-
-    kable(sweet16_teams,
-        caption = "Individual 8-12 Seed Team Probabilities"
-    ) %>%
-        kable_styling(bootstrap_options = c("striped", "hover"))
-}
-```
-
-### Key Findings
-
-```{r key-findings-individual, echo=FALSE, results='asis'}
-if (!is.null(mid_tier_advancement)) {
-    top3 <- mid_tier_advancement %>%
-        arrange(desc(`Sweet 16`)) %>%
-        head(3)
-
-    cat("### Key Findings\n\n")
-    cat(sprintf(
-        "- **%s (%d-seed)** has the highest Sweet 16 probability at **%.1f%%**\n",
-        top3$winner_name[1], top3$seed[1], top3$`Sweet 16`[1] * 100
-    ))
-    cat(sprintf(
-        "- **%s (%d-seed)** follows with **%.1f%%**\n",
-        top3$winner_name[2], top3$seed[2], top3$`Sweet 16`[2] * 100
-    ))
-    cat(sprintf(
-        "- **%s (%d-seed)** at **%.1f%%**\n",
-        top3$winner_name[3], top3$seed[3], top3$`Sweet 16`[3] * 100
-    ))
-    cat("- Substantial within-seed variation exists: not all teams with the same seed are equivalent\n\n")
-
-    # Add insight about top team
-    top_team <- top3[1, ]
-    if (top_team$seed[1] >= 10) {
-        cat(sprintf(
-            "%s's case perfectly illustrates why looking beyond seed numbers matters. Despite being a %d-seed, their strong regular season performance gives them better odds than many higher-seeded teams. This is the kind of insight that separates informed bracket predictions from guesswork.\n",
-            top_team$winner_name[1], top_team$seed[1]
-        ))
-    } else {
-        cat(sprintf("The top performers show that regular season strength translates directly to tournament opportunity, with the strongest 8-12 seeds achieving probabilities comparable to higher-seeded teams.\n"))
-    }
-} else {
-    cat("### Key Findings\n\n")
-    cat("- Individual team probabilities vary substantially within seed groups\n")
-    cat("- Teams with strong regular season performance exceed seed-typical expectations\n")
-    cat("- Looking beyond seed numbers to team strength metrics improves bracket accuracy\n")
-}
-```
-
-## 3.7 Historical Context: 2023-2024 Results
-
-**Note:** The following comparison uses actual NCAA tournament outcomes (2023-2024) against our strength-based model predictions. While our model uses synthetic seeds, the observed pattern of zero mid-tier seeds advancing is a real historical fact that we can contextualize.
-
-Our model predicts approximately **2.21 teams seeded 8-12** should reach the Sweet 16 on average. However, in both 2023 and 2024, **zero 8-12 seeds** (as assigned by the NCAA selection committee) reached the Sweet 16.
-
-**Statistical Context:**
-
-- Expected number of 8-12 seeds in Sweet 16: **2.21** (simulation mean)
-- Probability of zero 8-12 seeds reaching Sweet 16: **6.84%**
-- **Interpretation:** About a **1-in-15 chance**—genuinely unusual
-
-This suggests the 2023-2024 results were **statistically unusual** - such outcomes occur, but infrequently. Possible explanations include:
-
-- Random variation inherent in single-elimination tournaments
-- Particularly strong performances by top seeds in those years
-- The specific 8-12 seeds in 2023-2024 may have been relatively weaker
-- Injuries or other factors not captured in regular season data
-
-**Back-to-back occurrence (2023 AND 2024):** The probability of zero mid-tier seeds advancing in consecutive tournaments is approximately **0.47%** (6.84% × 6.84%), or about **1-in-214**. This is genuinely rare and represents a notable statistical anomaly. While not impossible, this level of top-seed dominance is historically uncommon and unlikely to persist.
+We will now compare our predicted versus actual results to the NCAA outcomes of the tournament in 2023-2024. Our model estimates that 2.21 teams in the seeds 8-12 will advance to the Sweet Sixteen (on average); however, it was observed that no seeds 8-12 advantage to the Sweet Sixteen, given that these were the seeds designated by the WNCAA. Our model stated that the probability of no teams with seeds 8-12 advancing to the Sweet Sixteen was 6.84%, which is quite unusual. Thus, the observed results of 2023-2024 were statistically unusual and uncommon, which may have been due to strong teams in the top seeds, weaker teams in the seeds 8-12, injuries, etc.
 
 ---
 
-# 4. Discussion
+## Limitations & Improvements
 
-## 4.1 Summary of Key Findings
+The data limitations we encountered were:
+-  Neutral game locations: We assume by the data that the tournament games are at neutral sites, but some teams may be located closer to the locations than others, which creates a temporary home-court advantage for some teams to have more support than others.
+-  Excluded NCAA tournament games: We wanted to avoid fitting the model using tournament performance, as that would overvalidate our results and not predict based on regular-season performance.However, tournament performance may have skills and team strength qualities that were not apparent in regular-season games.
+-  Aggregate data across seasons: Our estimates include data from 5 total seasons (2019 and 2021-2024), which means we show the team’s strength across years. Our estimated team strength is represented as an average across multiple years, which does not account for team composition or coach changes. Thus, the estimated results of the 2024 tournament capture simulated data from the prior seasons, rather than just the 2024 season.
+-  Our seeds are simulated based on team strength (Bradley-Terry lambda values): The data does not provide the NCAA’s tournament seeds, which are determined by schedule strength, location, quality wins/losses, etc., so our seeds would not match. Thus, our seeds are interpreted as if seeding were to perfectly match team strength (versus observed tournament seeds). As a result, our estimate to the question about “how many 8-12 seeds advance onto the Sweet Sixteen” is decided by which teams have the seed 8-12 team strength level. The interpretation of our results should reflect that these are strength-based estimates if the seeds matched team strength.
 
-### Aggregate-Level Insights
 
-1. **Expected Sweet 16 Advancement:** Approximately 2.21 teams seeded 8-12 reach the Sweet 16 in a typical tournament (range: 0-7, with 1-3 teams in 67% of simulations)
-
-2. **Conditional Deep Runs:** An 8-12 seed that reaches the Sweet 16 has:
-   - 45.0% chance of Elite 8
-   - 15.3% chance of Final Four
-   - 5.3% chance of Championship game
-   - 1.9% chance of winning it all (about 1-in-53)
-
-3. **Model Insights:** Simulation-based estimates (2.21 teams) are more reliable than seed-level analytical calculations (3.75 teams) because simulations account for wide variation in individual team strength within seed groups
-
-### Individual-Level Insights
-
-4. **Substantial Within-Seed Variation:** Individual team strength matters significantly beyond seed number alone
-   - Top 8-12 seed teams can achieve ~18% Sweet 16 probability
-   - Weakest 8-12 seed teams have near-zero probability (some λ values approach zero or negative)
-   - Regular season performance (λ values) explains these differences
-   - The gap between strongest and weakest within each seed is substantial
-
-5. **Historical Contextualization:** The 2023-2024 outcome (zero 8-12 seeds in Sweet 16) has 6.84% probability—genuinely unusual, occurring about once every 15 years. Back-to-back occurrence is extremely rare (0.47%, or 1-in-214)
-
-## 4.2 Interpretation and Implications
-
-### For Bracket Predictions
-
-- **Don't Over-Predict Upsets:** Expect 2-3 mid-tier seeds to reach Sweet 16, not 5-6
-- **Use Team-Specific Data:** Look beyond seed numbers to regular season strength metrics (λ values)
-- **Identify Cinderella Candidates:** Teams with high λ values despite mid-tier seeds (10-12) are prime upset picks
-- **Be Realistic:** The strongest 8-12 seeds rarely exceed 20% Sweet 16 probability
-
-### For Sports Media and Fans
-
-- **Calibrate Expectations:** When a 10-seed makes the Elite 8, that's genuinely rare
-- **Understand Variance:** Zero mid-tier seeds advancing happens about once every 15 years. Back-to-back "chalk" tournaments (like 2023-2024) are extremely rare (1-in-214)
-- **Individual Team Stories:** Focus on specific teams' strengths (λ values) rather than seed generalizations
-- **Context Matters:** The 2023-2024 drought was statistically unusual, not typical tournament behavior
-
-### For Teams and Coaches
-
-- **Regular Season Matters:** Stronger regular season performance measurably increases tournament advancement probability even within the same seed tier
-- **Matchup-Specific Preparation:** A 9-seed facing an 8-seed has near 50-50 odds; a 12-seed facing a 5-seed has ~25% odds—very different competitive scenarios
-- **Seeding Implications:** Being seeded 8 vs. 10 makes a meaningful difference in expected tournament outcomes
-
-## 4.3 Limitations and Considerations
-
-### Model Limitations
-
-1. **Constant Strength Assumption:** The model assumes team strength remains constant from regular season through tournament. In reality:
-   - Injuries can dramatically alter team composition
-   - Player fatigue accumulates
-   - Teams may "peak" at different times
-
-2. **No Momentum Effects:** The model treats each game independently. Some evidence suggests:
-   - Teams on "hot streaks" may outperform expectations
-   - Previous round upsets might build confidence
-
-3. **Neutral Site Assumption:** While NCAA tournament games are nominally neutral site:
-   - Geographic proximity may create pseudo-home-court advantages
-   - Fan attendance patterns can favor certain teams
-
-4. **Incomplete Opponent Information:** Regular season schedules vary in strength—not all 20-5 records are equivalent
-
-### Data Limitations
-
-1. **Synthetic Seeding (Critical Limitation):** This analysis uses **artificially generated seeds** based on Bradley-Terry λ values, **not actual NCAA tournament seeds**. This is a fundamental limitation that affects interpretation:
-   
-   **What we did:**
-   - Ranked all teams by their aggregated Bradley-Terry strength (λ)
-   - Assigned seeds 1-16 to the top 64 teams across four regions
-   - Used these model-based seeds for all tournament simulations
-   
-   **Why this matters:**
-   - The NCAA selection committee uses factors beyond raw team strength: strength of schedule, conference tournament performance, head-to-head records, geographic considerations, and subjective evaluation
-   - Real brackets may have "overseeded" or "underseeded" teams relative to their true strength
-   - Our seed-specific probabilities (e.g., "8-seeds have X% chance") represent **strength-equivalent seeds**, not actual NCAA seeding decisions
-   - Real tournament matchups would differ from our simulated bracket structure
-   
-   **Impact on results:**
-   - Our findings about "how many 8-12 seeds reach Sweet 16" are based on teams that *performed at the 8-12 seed strength level*, not teams that the selection committee actually seeded 8-12
-   - The strength-based approach may actually be more predictive than committee seeding (which can include political factors), but it's not the same as analyzing real historical tournaments
-   - To apply this model to an actual tournament, you would need to use the real NCAA bracket and seeds, not our synthetic ones
-   
-   **Interpretation:** Results should be viewed as **strength-based projections** showing what would happen if seeds perfectly matched team quality, rather than predictions of specific NCAA tournaments with committee-assigned seeds.
-
-2. **Multi-Season Data Aggregation:** We aggregate Bradley-Terry estimates across 5 seasons (2019, 2021-2024). While this provides more robust estimates, it means:
-   - Team abilities represent average strength across multiple years
-   - Roster changes, coaching changes, and program trajectory are not captured
-   - Recent performance is weighted equally with older performance
-   - The "2024 tournament" we simulate uses aggregated multi-year data, not just 2024 season performance
-
-3. **No Tournament-Specific Data:** We exclude NCAA tournament games from model fitting (to avoid circular reasoning), but tournament performance might reveal team qualities not visible in regular season:
-   - Tournament preparation may differ from regular season
-   - Single-elimination pressure creates different dynamics
-   - Travel, rest, and scheduling in tournaments differ from regular season
-
-### Methodological Considerations
-
-1. **Binary Win/Loss Only:** The Bradley-Terry model treats a 1-point win the same as a 30-point blowout. Following Professor Deshpande's recommendation, we tested margin-of-victory (MOV) extensions by comparing **predictive performance** on holdout data (similar to XGBoost model comparison in Lecture 3):
-   - **Base model (team + home):** 69.89% test accuracy, log-loss = 0.5779
-   - **With MOV covariate:** 69.89% test accuracy, log-loss = 0.5779
-   - **With offensive/defensive ratings:** 69.89% test accuracy, log-loss = 0.5779
-   - **Result:** All models show **identical predictive performance** on 2024 test set
-   - **Reason:** Team strength (λ) already captures dominance through win patterns; performance metrics are redundant (λ vs. net rating: r = 0.76, λ vs. MOV: r = 0.79)
-   - **Conclusion:** Use simpler base model (Occam's Razor)
-
-2. **No Contextual Variables:** The model doesn't account for:
-   - Rest days between games
-   - Player availability
-   - Tournament-specific factors (pressure, travel)
-
-3. **Independence Assumption:** Our simulation assumes win probabilities depend only on team strengths, ignoring potential correlation (e.g., teams from same conference may have correlated performance due to similar playing styles).
-
-## 4.4 Future Directions
-
-### Short-Term Enhancements
-
-1. **Incorporate Actual NCAA Seeds:** Replace synthetic seeding with real NCAA committee selections once bracket is released
-
-2. **Strength of Schedule Adjustments:** Weight team strength estimates by opponent quality
-
-3. **Confidence Intervals:** Propagate uncertainty in λ estimates through tournament simulations
-
-### Medium-Term Extensions
-
-1. **Alternative Performance Metrics:** While MOV, offensive/defensive ratings proved redundant with λ, other metrics might add value:
-   - Pace-adjusted efficiency ratings
-   - Four factors (shooting, turnovers, rebounding, free throws)
-   - Performance against ranked opponents
-   - Close-game win percentage
-
-2. **Player-Level Data:** Incorporate individual player statistics to handle roster changes and injuries
-
-3. **Time-Varying Strength:** Allow team strength to evolve across the season (early-season vs. late-season weights)
-
-4. **Context-Specific Models:** 
-   - Game-level home advantage already implemented and validates neutral-site assumption
-   - Fatigue/rest effects between tournament games
-   - Momentum or "hot-hand" effects
-
-### Long-Term Research
-
-1. **Multi-Year Historical Analysis:** Validate model predictions against historical tournament outcomes (requires compiling multi-year datasets)
-
-2. **Upset Predictor Features:** Identify characteristics beyond seed that predict upset propensity (e.g., pace of play, three-point shooting variance)
-
-3. **Cross-Sport Generalization:** Apply methodology to men's basketball, other NCAA tournaments (hockey, soccer, etc.)
-
-4. **Real-Time Updating:** Develop live tournament probability updates as each game concludes
-
-## 4.5 Practical Applications
-
-### Bracket Strategy Recommendations
-
-Based on our findings, here are evidence-based bracketing strategies:
-
-1. **Sweet 16 Picks:** Select 1-2 teams seeded 8-12, not 4-5. Prioritize:
-   - Teams with high λ estimates relative to seed
-   - 8-9 seeds over 11-12 seeds (better first-round odds)
-   - Teams with favorable regional brackets
-
-2. **Elite 8 Picks:** Be very conservative with 8-12 seeds at this stage. Consider at most one mid-tier seed reaching Elite 8.
-
-3. **Upset Round Targeting:** Most 8-12 seed upsets happen in Round of 32 (beating the 1-2 seed) rather than first round. If picking a Cinderella run, ensure your chosen team:
-   - Wins Round 1 (probability ~30-50% depending on seed)
-   - Has a favorable Round 2 matchup (avoid strongest 1-seeds)
-
-### Team Evaluation
-
-For coaches, analysts, and fans evaluating team performance:
-
-- **Over/Under-Seeded Detection:** Compare team's λ estimate to seed-typical λ range
-  - Teams with high λ values despite lower seeds represent "value picks"
-  - Look for teams whose strength significantly exceeds seed-typical expectations
-
-- **Tournament Preparedness:** Teams with high λ estimates derived from strong regular season are statistically more likely to succeed, even if seeded lower
-
-### Tournament Format Analysis
-
-Our results quantify competitive balance in the current 64-team, 1-16 seeded format:
-
-- **Sweet 16 Diversity:** Expect ~11-12 of 16 Sweet 16 teams to be seeded 1-4 (75%)
-- **Mid-Tier Representation:** Only ~2 of 16 (12.5%) will be 8-12 seeds
-- **Format Implications:** Current structure heavily favors top seeds. Alternative formats (e.g., reseeding after each round) would increase upset probability.
+To improve, we found 4 strategies:
+-  An improvement for the future is to include the observed WNCAA brackets rather than our strength-based seeds.
+- We can weight the team strength estimates in relation to the estimated strength of the opponents; if a team plays a significantly worse team, their outcome reflects the blowout win as less impactful to their team strength estimate.
+- To adjust for team-composition changes in the roster, we can incorporate player-level data when they leave or are added to a team.
+- We can weight by time, as teams usually evolve throughout the season by building stronger bonds and efficient team dynamics.
 
 ---
 
-# 5. Conclusion
+References:
 
-Using Bradley-Terry models combined with Monte Carlo simulation, we provide rigorous answers to our research questions:
+Bradley, R.A. and Terry, M.E. (1952). "Rank analysis of incomplete block designs: I. The method of paired comparisons." Biometrika, 39(3/4), 324-345.
 
-1. **Approximately 2.21 of the 8-12 seeds should advance to the Sweet 16** in a typical tournament (range: 0-7, typically 1-3 teams)
-2. **An 8-12 seed that reaches the Sweet 16 has a 15.3% probability of reaching the Final Four** and a 1.9% probability of winning the championship (about 1-in-53)
+Bulut, O. (2020). Conducting Monte Carlo simulations in R. University of Alberta – Scholars Portal. https://ualberta.scholaris.ca/items/7ae61a5a-8443-42c2-b5f8-a4d40d0bf3b7 
 
-Beyond these aggregate findings, our **individual team probability analysis** reveals:
+Cameron, E., & Hocking, T. D. (2025, April 10). BradleyTerry2: Bradley-Terry models in R [Vignette]. The Comprehensive R Archive Network. https://cran.r-project.org/web/packages/BradleyTerry2/vignettes/BradleyTerry.html 
 
-- **Substantial within-seed variation:** Not all 8-seeds are equivalent. Within the 8-12 seed range, team strength (λ values) varies dramatically—from strong teams with ~18% Sweet 16 probability down to weak teams with near-zero probability. Regular season performance explains these differences.
+Hutchinson, G., Gilani, S., et al. (2023). wehoop: Women's Basketball Data. R package version 1.5.0. https://github.com/sportsdataverse/wehoop
 
-- **Historical context matters:** The 2023-2024 observation of zero 8-12 seeds in the Sweet 16 has a 6.84% probability under our model—genuinely unusual, occurring about once every 15 years. The back-to-back occurrence is extremely rare (0.47%, or 1-in-214).
+Hyndman, R. J. (2023, November 1). AIC calculations. Hyndsight Blog. https://robjhyndman.com/hyndsight/lm_aic.html 
 
-- **Methodological insight:** Simulation-based estimates (2.21 teams) provide more accurate predictions than seed-level analytical calculations (3.75 teams) because simulations account for the full distribution of team strengths within each seed, including very weak teams that drag down the average.
+Nesbitt, S. (2024). wncaahoopR: Women's NCAA Basketball Data Package. https://github.com/snestler/wncaahoopR
 
-## Methodological Contributions
-
-This project demonstrates the power of combining classical statistical models (Bradley-Terry) with modern computational methods (Monte Carlo simulation) for sports analytics:
-
-1. **Rigorous uncertainty quantification:** We provide not just point estimates but full probability distributions
-2. **Multiple complementary approaches:** Analytical calculations validate simulation results
-3. **Individual and aggregate insights:** Analysis works at both team-specific and seed-group levels
-4. **Reproducible pipeline:** All code is documented and publicly available
-
-## Final Thoughts
-
-March Madness captures our imagination precisely because of its unpredictability. While 8-12 seeds face long odds for deep tournament runs, those runs *do* happen—just less frequently than casual fans might expect. Our model quantifies this tension between possibility and probability.
-
-For practitioners, this work provides:
-- **Bracket builders:** Evidence-based pick strategy
-- **Media:** Context for evaluating upset significance  
-- **Teams:** Motivation that regular season strength translates to tournament opportunity
-
-For researchers, this work demonstrates sports analytics methodology that balances:
-- Mathematical rigor (Bradley-Terry model theory)
-- Computational validation (Monte Carlo simulation)
-- Practical application (actionable tournament insights)
-
-The 2023-2024 tournaments reminded us that even well-fitting models cannot perfectly predict single-elimination variance. But by understanding the *distribution* of possible outcomes, we can better appreciate when something genuinely unusual occurs. The back-to-back drought of mid-tier seeds was not just random variation—it was a genuinely rare event (1-in-214) that demonstrated exceptional top-seed dominance unlikely to persist.
-
-These findings provide a quantitative framework for understanding mid-tier seed performance in Women's March Madness. The methodology allows analysis at both the **aggregate level** (how many 8-12 seeds overall) and **individual team level** (which specific teams are most likely), making it valuable for bracket predictions, team evaluation, and understanding tournament dynamics.
-
----
-
-# 6. References
-
-- Bradley, R.A. and Terry, M.E. (1952). "Rank analysis of incomplete block designs: I. The method of paired comparisons." *Biometrika*, 39(3/4), 324-345.
-- Turner, H. & Firth, D. (2020). *BradleyTerry2: Bradley-Terry Models in R*. R package version 1.1-2. https://CRAN.R-project.org/package=BradleyTerry2
-- Hutchinson, G., Gilani, S., et al. (2023). *wehoop: Women's Basketball Data*. R package version 1.5.0. https://github.com/sportsdataverse/wehoop
-- Nesbitt, S. (2024). *wncaahoopR: Women's NCAA Basketball Data Package*. https://github.com/snestler/wncaahoopR
-
----
-
-# Appendix: Technical Details {.unnumbered}
-
-## Software Environment
-
-```{r session-info}
-sessionInfo()
-```
-
-## Code Availability
-
-All analysis code is available in the project repository organized as follows:
-
-- **`scripts/00_helper_functions.R`**: Utility functions for file I/O, probability calculations
-- **`scripts/01_data_collection_UPDATED.R`**: Data scraping, cleaning, and preparation
-- **`scripts/02_bradley_terry_model.R`**: Bradley-Terry model fitting and team strength estimation
-- **`scripts/03_seed_analysis.R`**: Analytical probability calculations by seed
-- **`scripts/04_tournament_simulation.R`**: Monte Carlo tournament simulations (5,000 replications)
-- **`scripts/05_visualization.R`**: Aggregate-level visualizations
-- **`scripts/06_individual_team_probabilities.R`**: Individual team probability calculations
-- **`scripts/07_individual_team_viz.R`**: Individual team visualizations
-
-## Reproducibility
-
-To reproduce this analysis:
-
-```r
-# Install required packages
-install.packages(c("tidyverse", "here", "BradleyTerry2"))
-devtools::install_github("sportsdataverse/wehoop")
-
-# Run complete pipeline
-source("run_all.R")
-
-# Generate this report
-rmarkdown::render("reports/final_report.Rmd")
-```
-
-## Data Processing Details
-
-### Team Name Standardization
-
-Team names were standardized across games to ensure consistency:
-
-- Removed trailing/leading whitespace
-- Standardized abbreviations (e.g., "St." vs. "State")
-- Merged duplicate team entries
-
-### Game Filtering
-
-- **Included:** Regular season games only (September-February)
-- **Excluded:** Exhibition games, conference tournaments, NCAA tournament games, games with missing score data
-
-### Seed Assignment
-
-For synthetic seeding:
-
-1. Calculate win percentage for each team
-2. Rank teams 1-64 by win%
-3. Assign seeds 1-16 in each of 4 regions using serpentine draft order
-
----
-
-*Report generated: `r Sys.Date()`*
-
-*Course: STAT 479 - Sports Analytics, University of Wisconsin-Madison*
+Wikipedia contributors. (2025, November 6). Akaike information criterion. Wikipedia. https://en.wikipedia.org/wiki/Akaike_information_criterion 

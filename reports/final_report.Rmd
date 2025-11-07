@@ -45,51 +45,17 @@ read_if_exists <- function(path) {
 }
 ```
 
-# Executive Summary {.unnumbered}
+# Executive Summary 
 
-Every March, the NCAA Women's Basketball Tournament captures national attention with underdog stories. But in 2023 and 2024, something unusual happened: not a single mid-tier team—those seeded 8 through 12—made it to the Sweet Sixteen. Were these back-to-back "chalk" tournaments (where favorites win) a statistical fluke, or should we expect this regularly?
+The NCAA Women’s Basketball Tournament takes place in March, which makes it considered March Madness. While generally, people assume that the mid- to high-tier teams make it to the “Sweet Sixteen” (Top 16 teams in the tournament), in 2024, that did not happen, as no mid-tier teams made it to the Top 16. The question we want to answer is if a team ranked 8-12 advances to the second round, what is the chance they make it to the finals (or even win)?
 
-This study examines middle-seeded teams in March Madness to answer: **How often do 8-12 seeds make deep runs, and which ones should we watch most closely?**
+The data we used was from the wehoop R package, which provides play-by-play data, box scores, and game results from 2002-2024 for WNBA and WNCAA (and we will use the WNCAA data). Our analysis consisted of over 5,000 season games to create strength ratings for all teams in the tournament by evaluating their opponents and performance rather than wins and losses. Then, we simulated the tournaments 5,000 times to see outcomes from teams seeded 8-12. 
 
-We analyzed over 5,000 regular season games across 5 seasons to create strength ratings for all tournament teams—accounting for who you played and how you performed against them, not just wins and losses. We then simulated the entire tournament 5,000 times to see what typically happens to teams seeded 8-12.
+Some of our limitations are notable, being that the data also does not provide us with the observed Women’s NCAA Tournament seeds, so we create our seeds based on estimated team strengths. Real seeds take into consideration committee choices, schedule strength, location, quality wins/losses, etc. Additionally, we do not take into account the changes across seasons, whether that be roster changes or different coaches. 
 
-## Main Findings
+Our methodology consisted of using a Bradley-Terry Model, which helped us estimate team strength to determine seed placements for our tournament simulations. The win probability between teams depends on the difference in team strengths, indicating in our model whether teams played at home, and testing for alternative controlling variables that might affect the outcome. There is a large variability for team strength in our ranked seed levels for teams across seasons, since our model takes the average advancement of seeds per season across the 5 seasons. Lastly, we simulated 5,000 tournaments and tracked the 8-12 seed advancement from the Sweet 16 to the championship, where the distribution of teams narrowed as we further progressed in the tournament.
 
-In a typical tournament, expect about **two to three teams** seeded 8-12 to reach the Sweet Sixteen. Our simulations show an average of 2.21 teams (range 0-7), with most tournaments having 1-3 mid-tier seeds advance. The 2023-2024 drought (zero advancing) has about a **6.8% chance** of happening—genuinely unusual, occurring naturally about once every **15 years**, not every tournament cycle.
-
-When a mid-tier seed breaks through to the Sweet Sixteen, what happens next? About one in seven reach the Final Four, and only one in fifty-three win the championship. Making the Sweet Sixteen is the hardest part; once there, they're competitive (45% reach Elite 8) but still face long odds against top seeds for the title.
-
-Perhaps most importantly, seed numbers don't tell the whole story. Within the 8-12 seed range, team strength (Bradley-Terry λ values) varies dramatically. The strongest mid-tier seeds can have Sweet Sixteen probabilities near 20%, while the weakest approach zero. The difference? Teams with exceptionally strong regular season performance earn better odds regardless of their seed number. Looking beyond seed numbers to actual team strength separates informed predictions from guesswork.
-
-```{r load-results, echo=FALSE}
-# Load key results
-key_results <- read_if_exists(here("results", "tables", "key_results.rds"))
-sweet16_probs <- read_if_exists(here("results", "tables", "sweet16_mid_tier_probabilities.csv"))
-```
-
-**Key Numbers:**
-
-- **Expected 8-12 seeds in Sweet 16:** 2.21 teams (simulation average, range 0-7)
-- **Conditional probability of reaching Finals (given Sweet 16):** 5.3%
-- **Conditional probability of winning championship (given Sweet 16):** 1.9%
-- **Highest Sweet 16 probability (among mid-tier seeds):** Iowa State Cyclones (8-seed) at 17.2%
-- **Probability of zero 8-12 seeds in Sweet 16:** 6.8% (about 1-in-15 tournaments)
-
-## What This Means
-
-**For bracket predictions:** Be conservative with upset picks. Expecting five or six mid-tier seeds in the Sweet Sixteen is overly optimistic. Expect 2-3 seeds to advance, with most tournaments having 1-3. Focus on teams with high λ values (strong regular season performance) rather than hoping for multiple Cinderella stories.
-
-**For coaches and teams:** Regular season success translates directly to tournament opportunity. Strong performance against quality opponents measurably improves your chances, even with a middling seed. The difference between the strongest and weakest 8-12 seeds is substantial—ranging from ~18% Sweet 16 probability down to near-zero.
-
-**For fans and media:** When a 10-seed reaches the Elite Eight, celebrate appropriately. It's genuinely rare. The 2023-2024 drought of zero mid-tier seeds advancing was even rarer—a 1-in-15 occurrence that won't happen frequently.
-
-## The Bottom Line
-
-The past two tournaments showed what happens when favorites dominate at a historically unusual level. Mid-tier seeds will break through again—in fact, 2-3 typically do each year. Understanding individual team strength, beyond just seed numbers, helps identify those breakthrough candidates. Basketball remains beautifully unpredictable, but patterns emerge. Expect about two to three mid-tier seeds to reach the Sweet Sixteen in most years, with about half of those making deeper runs to the Elite Eight.
-
-## Important Caveat
-
-This analysis uses **synthetic tournament seeds** based on team strength (Bradley-Terry λ values), not actual NCAA selection committee seeds. Results show what would happen if seeds perfectly matched team quality—a "what-if" scenario. Real NCAA tournaments involve committee decisions that may over- or under-seed teams relative to their true strength. To predict an actual tournament, you would need to use the real NCAA bracket. See Section 4.3 for detailed discussion of this limitation.
+Overall, our results display that 2.21 teams in seeds 8-12 advance to the Sweet 16, 45% of those same teams reach the Elite 8, 15.3% reach the Final 4, and 1.9% of those same teams will win the championship. of those same teams. In reference to the 2023-2024 season, no mid-tier teams made it to the Top 16, which has about a 6.8% probability of occurring, which is very unusual. Therefore, fans can celebrate when the team they cheer for is seeded 10 and advances to the Elite 8.
 
 ---
 
